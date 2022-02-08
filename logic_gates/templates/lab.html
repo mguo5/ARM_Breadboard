@@ -1,0 +1,61 @@
+{% extends "_bootstrap.html" %}
+
+{% block head %}
+    {{ super() }}
+    {# Here go all the styles, CSS links, etc. #}
+    {% assets "visir_css" %}
+    <link href="{{ ASSET_URL }}" rel="stylesheet">
+    {% endassets %}
+    <style>
+        .breadboard .delete {
+            background-image: url('{{ url_for('static', filename='visir/instruments/breadboard/images/trash.png') }}');
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    {{ super() }}
+    {# Here go what is inside the <body></body>. #}
+
+    <div class="container">
+        <h1>Hello world!</h1>
+
+        <div id="breadboard"></div>
+    </div>
+    <div>
+        <button onclick="printLog()">Submit</button>
+    </div>
+
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    {# Here go all the JavaScript scripts. Most of them should be in the static folder #}
+
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+
+    <script>
+        window.visir = window.visir || {};
+        window.visir.BaseLocation = "{{ url_for('static', filename='visir/') }}";
+    </script>
+
+    {% assets "visir_js" %}
+    <script src="{{ ASSET_URL }}"></script>
+    {% endassets %}
+    <script src="{{ url_for('static', filename='logic_gates/breadboard-visir.js') }}"></script>
+    <script>
+        var endpointBase = "{{ url_for('api.index') }}";
+        var imageBase = "{{ url_for('static', filename='resources/images/') }}";
+        var numberOfSwitches = 3;
+        var breadboard = new RHLab.Widgets.Breadboard($("#breadboard"), endpointBase, numberOfSwitches, imageBase, false);
+        breadboard._ChangeOutput(6, true);
+        console.log(breadboard);
+    </script>
+    <script>
+        function printLog(){
+            breadboard.Update()
+            console.log(breadboard);
+        }
+    </script>
+
+{% endblock %}
