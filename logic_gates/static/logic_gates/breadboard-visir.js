@@ -48,7 +48,9 @@ RHLab.Widgets.Breadboard = function() {
         };
         this._outputs = []; // Switches
         this._inputs = []; // LEDs
-        this._notGate = [];
+        this._notGate = []; // not gate
+        this._andGate = []; //and gate
+        this._orGate = []; //or gate
         this._numberOfSwitches = numberOfSwitches || DEFAULT_NUMBER_OF_SWITCHES;
         this._imageBase = imageBase || (window.STATIC_ROOT + "resources/img/");
         this._enableNetwork = (enableNetwork === undefined)?true:enableNetwork;
@@ -213,12 +215,12 @@ RHLab.Widgets.Breadboard = function() {
             this.AddComponent(switchComponent);
         }
 
-        var led0 = new Breadboard.LED('led0', this._imageBase, 496, 157);
-        this._inputs.push(led0);
-        this.AddComponent(led0);
-        var led1 = new Breadboard.LED('led1', this._imageBase, 522, 157);
-        this._inputs.push(led1);
-        this.AddComponent(led1);
+        // var led0 = new Breadboard.LED('led0', this._imageBase, 496, 157);
+        // this._inputs.push(led0);
+        // this.AddComponent(led0);
+        // var led1 = new Breadboard.LED('led1', this._imageBase, 522, 157);
+        // this._inputs.push(led1);
+        // this.AddComponent(led1);
 
         var jp1Image = this._imageBase + "connections_50.png";
         var jp1 = new Breadboard.Component('JP1', 221, 22, jp1Image, null, 0);
@@ -228,15 +230,21 @@ RHLab.Widgets.Breadboard = function() {
         /***************************************************************************************** */
         var not0 = new Breadboard.NotGate('NG1', this._imageBase, 274, 261);
         this._notGate.push(not0);
-        this.AddComponent(not0)
+        this.AddComponent(not0);
         
         // var notGateImage = this._imageBase + "not_gate.png";
         // var not_gate = new Breadboard.Component('NG1', 274, 261, notGateImage, null, 0);
         // this.AddComponent(not_gate);
         /***************************************************************************************** */
-        var andGateImage = this._imageBase + "and_gate.png";
-        var and_gate = new Breadboard.Component("AG1", 378, 261, andGateImage, null, 0);
-        this.AddComponent(and_gate);
+        //var andGateImage = this._imageBase + "and_gate.png";
+        //var and_gate = new Breadboard.Component("AG1", 378, 261, andGateImage, null, 0);
+        var and0 = new Breadboard.AndGate("AG1", this._imageBase, 365, 261);
+        this._andGate.push(and0);
+        this.AddComponent(and0);
+
+        var or0 = new Breadboard.OrGate("OG1", this._imageBase, 456, 261);
+        this._orGate.push(or0);
+        this.AddComponent(or0);
     }
 
     Breadboard.prototype.AddComponent = function(component) {
@@ -358,6 +366,8 @@ RHLab.Widgets.Breadboard = function() {
             var otherPoint;
             if (gpioPin1 === null && gpioPin2 === null) {
                 var gate_array = this._notGate;
+                var and_array = this._andGate;
+                var or_array = this._orGate;
                 // add stuff here about valid switch to logic gates
                 /*************************************************** */
                 // It can only go to the LED's
@@ -386,7 +396,41 @@ RHLab.Widgets.Breadboard = function() {
                                 var wirePositions = gate.GetPinLocation();
                                 for(var i = 0; i < wirePositions.length; i++){
                                     if(logic_wire.x === wirePositions[i]){
-                                        if(logic_wire.y > gate._leftPosition){
+                                        if(logic_wire.y > gate._topPosition){
+                                            // bottom half
+                                            gate.SetValue(i+1, output.GetValue());
+                                        }
+                                        else{
+                                            //top half
+                                            gate.SetValue(14-i, output.GetValue());
+                                        }
+                                    }
+                                }
+                                /****************************************** */
+        
+                            });
+                            $.each(and_array, function (position, gate) {
+                                var wirePositions = gate.GetPinLocation();
+                                for(var i = 0; i < wirePositions.length; i++){
+                                    if(logic_wire.x === wirePositions[i]){
+                                        if(logic_wire.y > gate._topPosition){
+                                            // bottom half
+                                            gate.SetValue(i+1, output.GetValue());
+                                        }
+                                        else{
+                                            //top half
+                                            gate.SetValue(14-i, output.GetValue());
+                                        }
+                                    }
+                                }
+                                /****************************************** */
+        
+                            });
+                            $.each(or_array, function (position, gate) {
+                                var wirePositions = gate.GetPinLocation();
+                                for(var i = 0; i < wirePositions.length; i++){
+                                    if(logic_wire.x === wirePositions[i]){
+                                        if(logic_wire.y > gate._topPosition){
                                             // bottom half
                                             gate.SetValue(i+1, output.GetValue());
                                         }
@@ -487,6 +531,7 @@ RHLab.Widgets.Breadboard = function() {
                     if (!found) {
                         this.ReportError("output-not-switch-gnd");
                         // Add things here about checking logic gates
+                        // GPIO to logic gate
                         /******************************************* */
                         if(wire._start.y > 60){
                             var cur_wire = wire._start;
@@ -498,7 +543,47 @@ RHLab.Widgets.Breadboard = function() {
                             var wirePositions = gate.GetPinLocation();
                             for(var i = 0; i < wirePositions.length; i++){
                                 if(cur_wire.x === wirePositions[i]){
-                                    if(cur_wire.y > gate._leftPosition){
+                                    if(cur_wire.y > gate._topPosition){
+                                        // bottom half
+                                        self._ChangeOutput(gpioPin, gate.GetValue(i));
+                                        processedOutputGpios.push(gpioPin);
+                                    }
+                                    else{
+                                        //top half
+                                        self._ChangeOutput(gpioPin, gate.GetValue(13-i));
+                                        processedOutputGpios.push(gpioPin);
+                                    }
+                                }
+                            }
+                            /****************************************** */
+    
+                        });
+                        $.each(this._andGate, function (position, gate) {
+                            var wirePositions = gate.GetPinLocation();
+                            for(var i = 0; i < wirePositions.length; i++){
+
+                                if(cur_wire.x === wirePositions[i]){
+                                    if(cur_wire.y > gate._topPosition){
+                                        // bottom half
+                                        self._ChangeOutput(gpioPin, gate.GetValue(i));
+                                        processedOutputGpios.push(gpioPin);
+                                    }
+                                    else{
+                                        //top half
+                                        self._ChangeOutput(gpioPin, gate.GetValue(13-i));
+                                        processedOutputGpios.push(gpioPin);
+                                    }
+                                }
+                            }
+                            /****************************************** */
+    
+                        });
+                        $.each(this._orGate, function (position, gate) {
+                            var wirePositions = gate.GetPinLocation();
+                            for(var i = 0; i < wirePositions.length; i++){
+
+                                if(cur_wire.x === wirePositions[i]){
+                                    if(cur_wire.y > gate._topPosition){
                                         // bottom half
                                         self._ChangeOutput(gpioPin, gate.GetValue(i));
                                         processedOutputGpios.push(gpioPin);
@@ -632,7 +717,129 @@ RHLab.Widgets.Breadboard = function() {
         else
             return 211;
     }
+    
+    Breadboard.OrGate = function(identifier, imageBase, leftPosition, topPosition){
+        var self = this;
+        var image1 = imageBase + "or_gate.png";
+        Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
 
+        this._pin_location = [
+            leftPosition + 7,
+            leftPosition + 20,
+            leftPosition + 33,
+            leftPosition + 46,
+            leftPosition + 59,
+            leftPosition + 72,
+            leftPosition + 85
+        ]
+    
+        this._array_value = [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+        ]
+    }
+
+    Breadboard.OrGate.prototype = Object.create(Breadboard.Component.prototype);
+
+    Breadboard.OrGate.prototype.GetValue = function(pin){
+        return this._array_value[pin];
+    }
+
+    Breadboard.OrGate.prototype.GetPinLocation = function () {
+        return this._pin_location;
+    }
+
+    Breadboard.OrGate.prototype.SetValue = function(pin, value){
+        if(pin === 1 || pin === 2){
+            this._array_value[pin - 1] = value;
+            this._array_value[2] = this._array_value[0] || this._array_value[1];
+        }
+        else if(pin === 4 || pin === 5){
+            this._array_value[pin - 1] = value;
+            this._array_value[5] = this._array_value[3] || this._array_value[4];
+        }
+        else if(pin === 10 || pin === 9){
+            this._array_value[pin - 1] = value;
+            this._array_value[5] = this._array_value[8] || this._array_value[9];
+        }
+        else if(pin === 12 || pin === 13){
+            this._array_value[pin - 1] = value;
+            this._array_value[10] = this._array_value[11] || this._array_value[12];
+        }
+    }
+    // ***********************************************************************************
+    Breadboard.AndGate = function(identifier, imageBase, leftPosition, topPosition) {
+        var self = this;
+        var image1 = imageBase + "and_gate.png";
+        Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
+        this._pin_location = [
+            leftPosition + 7,
+            leftPosition + 20,
+            leftPosition + 33,
+            leftPosition + 46,
+            leftPosition + 59,
+            leftPosition + 72,
+            leftPosition + 85
+        ]
+
+        this._array_value = [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+        ]
+    }
+
+    Breadboard.AndGate.prototype = Object.create(Breadboard.Component.prototype);
+
+    Breadboard.AndGate.prototype.GetValue = function(pin){
+        return this._array_value[pin];
+    }
+
+    Breadboard.AndGate.prototype.GetPinLocation = function () {
+        return this._pin_location;
+    }
+
+    Breadboard.AndGate.prototype.SetValue = function(pin, value){
+        if(pin === 1 || pin === 2){
+            this._array_value[pin - 1] = value;
+            this._array_value[2] = this._array_value[0] && this._array_value[1];
+        }
+        else if(pin === 4 || pin === 5){
+            this._array_value[pin - 1] = value;
+            this._array_value[5] = this._array_value[3] && this._array_value[4];
+        }
+        else if(pin === 10 || pin === 9){
+            this._array_value[pin - 1] = value;
+            this._array_value[5] = this._array_value[8] && this._array_value[9];
+        }
+        else if(pin === 12 || pin === 13){
+            this._array_value[pin - 1] = value;
+            this._array_value[10] = this._array_value[11] && this._array_value[12];
+        }
+    }
     // ***************************************************************************************************************************
     Breadboard.NotGate = function(identifier, imageBase, leftPosition, topPosition) {
         var self = this;

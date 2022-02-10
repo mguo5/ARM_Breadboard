@@ -20,7 +20,8 @@
     <div class="container">
         <h1>Hello world!</h1>
 
-        <div id="breadboard"></div>
+        <div id="breadboard" style="float:left;"></div>
+        <img src="{{ url_for('static', filename='resources/images/logic_pinout.png') }}" width=200px style="float:left;">
     </div>
     <div>
         <button onclick="printLog()">Submit</button>
