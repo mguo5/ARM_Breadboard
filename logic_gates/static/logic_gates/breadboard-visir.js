@@ -419,6 +419,7 @@ RHLab.Widgets.Breadboard = function() {
                                         }
                                         else{
                                             //top half
+                                            console.log(14-i);
                                             gate.SetValue(14-i, output.GetValue());
                                         }
                                     }
@@ -772,7 +773,7 @@ RHLab.Widgets.Breadboard = function() {
         }
         else if(pin === 10 || pin === 9){
             this._array_value[pin - 1] = value;
-            this._array_value[5] = this._array_value[8] || this._array_value[9];
+            this._array_value[7] = this._array_value[8] || this._array_value[9];
         }
         else if(pin === 12 || pin === 13){
             this._array_value[pin - 1] = value;
@@ -833,7 +834,7 @@ RHLab.Widgets.Breadboard = function() {
         }
         else if(pin === 10 || pin === 9){
             this._array_value[pin - 1] = value;
-            this._array_value[5] = this._array_value[8] && this._array_value[9];
+            this._array_value[7] = this._array_value[8] && this._array_value[9];
         }
         else if(pin === 12 || pin === 13){
             this._array_value[pin - 1] = value;
