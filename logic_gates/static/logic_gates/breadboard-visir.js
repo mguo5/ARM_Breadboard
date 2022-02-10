@@ -449,6 +449,165 @@ RHLab.Widgets.Breadboard = function() {
                     }
 
                 });
+                $.each(this._notGate, function (position, notGate) {
+                    var wirePositions =notGate.GetPinLocation();
+                    // allow direct pin connections to GND and 3v3
+                    
+                    for(var i = 0; i < wirePositions.length; i++){
+                        if(wire._start.x === wirePositions[i] && wire._start.y > 150 && wire._start.y < 400){
+                            //wire._start is a logic wire
+                            if(finder.IsPower(wire._end)){
+                                if(wire._start.y > notGate._topPosition){
+                                    // bottom half
+                                    notGate.SetValue(i+1, true);
+                                }
+                                else{
+                                    //top half
+                                    notGate.SetValue(14-i, true);
+                                }
+                            }
+                            else if(finder.IsGround(wire._end)){
+                                if(wire._start.y > notGate._topPosition){
+                                    // bottom half
+                                    notGate.SetValue(i+1, false);
+                                }
+                                else{
+                                    //top half
+                                    notGate.SetValue(14-i, false);
+                                }
+                            }
+                        }
+                        else if(wire._end.x === wirePositions[i] && wire._end.y > 150 && wire._end.y < 400){
+                            //wire._end is a logic wire
+                            if(finder.IsPower(wire._start)){
+                                if(wire._end.y > notGate._topPosition){
+                                    // bottom half
+                                    notGate.SetValue(i+1, true);
+                                }
+                                else{
+                                    //top half
+                                    notGate.SetValue(14-i, true);
+                                }
+                            }
+                            else if(finder.IsGround(wire._start)){
+                                if(wire._end.y > notGate._topPosition){
+                                    // bottom half
+                                    notGate.SetValue(i+1, false);
+                                }
+                                else{
+                                    //top half
+                                    notGate.SetValue(14-i, false);
+                                }
+                            }
+                        }
+                    }
+                });
+                $.each(this._andGate, function (position, andGate) {
+                    var wirePositions =andGate.GetPinLocation();
+                    // allow direct pin connections to GND and 3v3
+                    
+                    for(var i = 0; i < wirePositions.length; i++){
+                        if(wire._start.x === wirePositions[i] && wire._start.y > 150 && wire._start.y < 400){
+                            //wire._start is a logic wire
+                            if(finder.IsPower(wire._end)){
+                                if(wire._start.y > andGate._topPosition){
+                                    // bottom half
+                                    andGate.SetValue(i+1, true);
+                                }
+                                else{
+                                    //top half
+                                    andGate.SetValue(14-i, true);
+                                }
+                            }
+                            else if(finder.IsGround(wire._end)){
+                                if(wire._start.y > andGate._topPosition){
+                                    // bottom half
+                                    andGate.SetValue(i+1, false);
+                                }
+                                else{
+                                    //top half
+                                    andGate.SetValue(14-i, false);
+                                }
+                            }
+                        }
+                        else if(wire._end.x === wirePositions[i] && wire._end.y > 150 && wire._end.y < 400){
+                            //wire._end is a logic wire
+                            if(finder.IsPower(wire._start)){
+                                if(wire._end.y > andGate._topPosition){
+                                    // bottom half
+                                    andGate.SetValue(i+1, true);
+                                }
+                                else{
+                                    //top half
+                                    andGate.SetValue(14-i, true);
+                                }
+                            }
+                            else if(finder.IsGround(wire._start)){
+                                if(wire._end.y > andGate._topPosition){
+                                    // bottom half
+                                    andGate.SetValue(i+1, false);
+                                }
+                                else{
+                                    //top half
+                                    andGate.SetValue(14-i, false);
+                                }
+                            }
+                        }
+                    }
+                });
+                $.each(this._orGate, function (position, orGate) {
+                    var wirePositions =orGate.GetPinLocation();
+                    // allow direct pin connections to GND and 3v3
+                    
+                    for(var i = 0; i < wirePositions.length; i++){
+                        if(wire._start.x === wirePositions[i] && wire._start.y > 150 && wire._start.y < 400){
+                            //wire._start is a logic wire
+                            if(finder.IsPower(wire._end)){
+                                if(wire._start.y > orGate._topPosition){
+                                    // bottom half
+                                    orGate.SetValue(i+1, true);
+                                }
+                                else{
+                                    //top half
+                                    orGate.SetValue(14-i, true);
+                                }
+                            }
+                            else if(finder.IsGround(wire._end)){
+                                if(wire._start.y > orGate._topPosition){
+                                    // bottom half
+                                    orGate.SetValue(i+1, false);
+                                }
+                                else{
+                                    //top half
+                                    orGate.SetValue(14-i, false);
+                                }
+                            }
+                        }
+                        else if(wire._end.x === wirePositions[i] && wire._end.y > 150 && wire._end.y < 400){
+                            //wire._end is a logic wire
+                            if(finder.IsPower(wire._start)){
+                                if(wire._end.y > orGate._topPosition){
+                                    // bottom half
+                                    orGate.SetValue(i+1, true);
+                                }
+                                else{
+                                    //top half
+                                    orGate.SetValue(14-i, true);
+                                }
+                            }
+                            else if(finder.IsGround(wire._start)){
+                                if(wire._end.y > orGate._topPosition){
+                                    // bottom half
+                                    orGate.SetValue(i+1, false);
+                                }
+                                else{
+                                    //top half
+                                    orGate.SetValue(14-i, false);
+                                }
+                            }
+                        }
+                    }
+                });
                 /******************************************************** */
                 this.ReportError('no-gpio');
                 errors = true;
