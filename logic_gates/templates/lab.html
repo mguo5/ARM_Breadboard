@@ -18,7 +18,7 @@
     {# Here go what is inside the <body></body>. #}
 
     <div class="container">
-        <h1>Hello world!</h1>
+        <h1>Virtualized Breadboard</h1>
 
         <div id="breadboard" style="float:left;"></div>
         <img src="{{ url_for('static', filename='resources/images/logic_pinout.png') }}" width=200px style="float:left;">
@@ -49,13 +49,77 @@
         var imageBase = "{{ url_for('static', filename='resources/images/') }}";
         var numberOfSwitches = 3;
         var breadboard = new RHLab.Widgets.Breadboard($("#breadboard"), endpointBase, numberOfSwitches, imageBase, false);
-        breadboard._ChangeOutput(6, true);
-        console.log(breadboard);
     </script>
     <script>
         function printLog(){
             breadboard.Update()
             console.log(breadboard);
+            if(breadboard._notGate){
+                if(breadboard._notGate['0']._array_value['6'] !== false || breadboard._notGate['0']._array_value['13'] !== true){
+                    alert("NOT Gate improper wiring. Check Vcc and GND wiring!");
+                    return;
+                }
+            }
+            if(breadboard._andGate){
+                if(breadboard._andGate['0']._array_value['6'] !== false || breadboard._andGate['0']._array_value['13'] !== true){
+                    alert("AND Gate improper wiring. Check Vcc and GND wiring!");
+                    return;
+                }
+            }
+            if(breadboard._orGate){
+                if(breadboard._orGate['0']._array_value['6'] !== false || breadboard._orGate['0']._array_value['13'] !== true){
+                    alert("OR Gate improper wiring. Check Vcc and GND wiring!");
+                    return;
+                }
+            }
+            if(breadboard._outputState['7']){
+                console.log('GCO');
+            }
+            else{
+                console.log('GCF');
+            }
+
+            if(breadboard._outputState['11']){
+                console.log('GAO');
+            }
+            else{
+                console.log('GAF');
+            }
+
+            if(breadboard._outputState['21']){
+                console.log('GBO');
+            }
+            else{
+                console.log('GBF');
+            }
+
+            if(breadboard._outputState['44']){
+                console.log('LGO');
+            }
+            else{
+                console.log('LGF');
+            }
+
+            if(breadboard._outputState['45']){
+                console.log('LOO');
+            }
+            else{
+                console.log('LOF');
+            }
+
+            if(breadboard._outputState['46']){
+                console.log('LRO');
+            }
+            else{
+                console.log('LRF');
+            }
+
+            if(breadboard._outputState['47']){
+                console.log('LBO');
+            }
+            else{
+                console.log('LBF');
+            }
         }
     </script>
 

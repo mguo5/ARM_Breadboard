@@ -12,11 +12,12 @@ RHLab.Widgets.Breadboard = function() {
     var DEFAULT_NUMBER_OF_SWITCHES = 18;
 
     var OUTPUTS_BY_PIN = {
-         6: 'V_SW0',  // GPIO5
-         7: 'V_SW1',  // GPIO6
+         7: 'PC1',  // GPIO6 //PC1
          8: 'V_SW2',  // GPIO7
          9: 'V_SW3',  // GPIO8
         10: 'V_SW4',  // GPIO9
+        11: 'PA1', //PA1
+        12: 'temp',
         13: 'V_SW5',  // GPIO10
         14: 'V_SW6',  // GPIO11
         15: 'V_SW7',  // GPIO12
@@ -25,11 +26,31 @@ RHLab.Widgets.Breadboard = function() {
         18: 'V_SW10', // GPIO15
         19: 'V_SW11', // GPIO16
         20: 'V_SW12', // GPIO17
-        21: 'V_SW13', // GPIO18
+        21: 'PB1', // GPIO18  //PB1
         22: 'V_SW14', // GPIO19
-        23: 'V_SW15', // GPIO20
+        //23: 'V_SW15', // GND
         24: 'V_SW16', // GPIO21
         25: 'V_SW17', // GPIO22
+        26: 'V_SW18',
+        27: 'V_SW19',
+        28: 'V_SW20',
+        29: 'V_SW21',
+        30: 'V_SW22',
+        33: 'V_SW23',
+        34: 'V_SW24',
+        35: 'V_SW25',
+        36: 'V_SW26',
+        37: 'V_SW27',
+        38: 'V_SW28',
+        39: 'V_SW29',
+        40: 'V_SW30',
+        41: 'V_SW31',
+        42: 'V_SW32',
+        43: 'V_SW33',
+        44: 'PD12', //Green
+        45: 'PD13', //Orange
+        46: 'PD14', //Red
+        47: 'PD15' //Blue
     };
 
     var INPUTS_BY_PIN = {
@@ -285,11 +306,11 @@ RHLab.Widgets.Breadboard = function() {
         var factor = ((point.x - 229) / 13); // 13 is the number of pixels between GPIO pin points
                                              // 229 is the distance between left wall and the left edge of the GPIO connector
         if (point.y == 55) { // bottom row (1..39)
-            if (point.x >= 229 && point.x <= 476) {
+            if (point.x >= 229 && point.x <= 543) {
                 return Math.round((factor + 1) * 2) - 1;
             } 
         } else if (point.y == 42) { // upper row (2..40)
-            if (point.x >= 229 && point.x <= 476) {
+            if (point.x >= 229 && point.x <= 543) {
                 return Math.round((factor + 1) * 2);
             } 
         }
@@ -360,7 +381,7 @@ RHLab.Widgets.Breadboard = function() {
             var wire = wires[i];
 
             // Each wire must be connected to a GPIO at least. Otherwise, error
-            var gpioPin1 = finder.FindGpioPin(wire._start);
+            var gpioPin1 = finder.FindGpioPin(wire._start);  
             var gpioPin2 = finder.FindGpioPin(wire._end);
             var gpioPin;
             var otherPoint;
@@ -938,6 +959,9 @@ RHLab.Widgets.Breadboard = function() {
             this._array_value[pin - 1] = value;
             this._array_value[10] = this._array_value[11] || this._array_value[12];
         }
+        else{
+            this._array_value[pin - 1] = value;
+        }
     }
     // ***********************************************************************************
     Breadboard.AndGate = function(identifier, imageBase, leftPosition, topPosition) {
@@ -999,6 +1023,9 @@ RHLab.Widgets.Breadboard = function() {
             this._array_value[pin - 1] = value;
             this._array_value[10] = this._array_value[11] && this._array_value[12];
         }
+        else{
+            this._array_value[pin - 1] = value;
+        }
     }
     // ***************************************************************************************************************************
     Breadboard.NotGate = function(identifier, imageBase, leftPosition, topPosition) {
@@ -1044,6 +1071,9 @@ RHLab.Widgets.Breadboard = function() {
         else if(pin === 9 || pin === 11 || pin === 13){
             this._array_value[pin - 1] = value;
             this._array_value[pin - 2] = !value;
+        }
+        else{
+            this._array_value[pin - 1] = value;
         }
     }
 
