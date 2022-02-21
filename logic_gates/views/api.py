@@ -26,3 +26,10 @@ def switch(number):
         return jsonify(success=False, message="not implemented")
     return jsonify(success=True)
 
+@api_blueprint.route('/submit', methods=['GET', 'POST'])
+def submit():
+    if request.method == 'POST':
+        asd = request.json
+        print(asd)
+        return jsonify(success=True)
+    

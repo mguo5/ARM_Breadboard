@@ -17,7 +17,7 @@ def check_csrf(func):
 
 @fake_api_blueprint.route('/', methods=['GET', 'POST'])
 def index():
-    return "Fake API endpoint"
+    return "API endpoint"
 
 @fake_api_blueprint.route('/switch/<number>', methods=['GET', 'POST'])
 @check_csrf
@@ -26,3 +26,9 @@ def switch(number):
         return jsonify(success=False, message="not implemented")
     return jsonify(success=True)
 
+@fake_api_blueprint.route('/submit', methods=['GET', 'POST'])
+def submit():
+    if request.method == 'POST':
+        asd = request.json
+        print(asd)
+        return jsonify(success=True)
