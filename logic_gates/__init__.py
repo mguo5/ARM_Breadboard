@@ -20,7 +20,7 @@ def create_app(config_name):
     # redis.init_app(app)
     # babel.init_app(app)
     #
-    
+    #from .views.pi_serial import uart_communicate
     from .bundles import register_bundles
     register_bundles(assets)
 
