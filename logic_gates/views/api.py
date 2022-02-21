@@ -3,7 +3,6 @@ from flask import Blueprint, request, jsonify, session
 
 api_blueprint = Blueprint('api', __name__)
 
-
 def check_csrf(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
