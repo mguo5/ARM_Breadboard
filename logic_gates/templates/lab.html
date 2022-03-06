@@ -18,7 +18,11 @@
     {# Here go what is inside the <body></body>. #}
 
     <div class="container">
-        <h1>Virtualized Breadboard</h1>
+        <!--<h1>Virtualized Breadboard</h1>-->
+        <div>
+            <img src="{{ url_for('static', filename='resources/images/Project_Butterfly.png') }}" height=200px>
+        </div>
+        
 
         <div id="breadboard" style="float:left;"></div>
         <img src="{{ url_for('static', filename='resources/images/logic_pinout.png') }}" width=200px style="float:left;">
@@ -56,7 +60,7 @@
     <script>
         function printLog(){
             breadboard.Update()
-            console.log(breadboard);
+            console.log(breadboard._outputState);
             // if(breadboard._notGate){
             //     if(breadboard._notGate['0']._array_value['6'] !== false || breadboard._notGate['0']._array_value['13'] !== true){
             //         alert("NOT Gate improper wiring. Check Vcc and GND wiring!");
@@ -77,81 +81,81 @@
             // }
             codes = []
             if(breadboard._outputState['7']){
-                console.log('GCO');
+                //console.log('GCO');
                 codes.push('GCO');
             }
             else{
-                console.log('GCF');
+                //console.log('GCF');
                 codes.push('GCF');
             }
 
             if(breadboard._outputState['11']){
-                console.log('GAO');
+                //console.log('GAO');
                 codes.push('GAO');
             }
             else{
-                console.log('GAF');
+                //console.log('GAF');
                 codes.push('GAF');
             }
 
             if(breadboard._outputState['21']){
-                console.log('GBO');
+                //console.log('GBO');
                 codes.push('GBO');
             }
             else{
-                console.log('GBF');
+                //console.log('GBF');
                 codes.push('GBF');
             }
 
             if(breadboard._outputState['44']){
-                console.log('LGO');
+                //console.log('LGO');
                 codes.push('LGO');
             }
             else{
-                console.log('LGF');
+                //console.log('LGF');
                 codes.push('LGF');
             }
 
             if(breadboard._outputState['45']){
-                console.log('LOO');
+                //console.log('LOO');
                 codes.push('LOO');
             }
             else{
-                console.log('LOF');
+                //console.log('LOF');
                 codes.push('LOF');
             }
 
             if(breadboard._outputState['46']){
-                console.log('LRO');
+                //console.log('LRO');
                 codes.push('LRO');
             }
             else{
-                console.log('LRF');
+                //console.log('LRF');
                 codes.push('LRF');
             }
 
             if(breadboard._outputState['47']){
-                console.log('LBO');
+                //console.log('LBO');
                 codes.push('LBO');
             }
             else{
-                console.log('LBF');
+                //console.log('LBF');
                 codes.push('LBF');
             }
-            console.log(codes);
-            // $.ajax({
-            //     type:'POST',
-            //     contentType: 'application/json',
-            //     data: JSON.stringify(codes),
-            //     dataType: 'json',
-            //     url: 'http://127.0.0.1:5000/',
-            //     success: function(e){
-            //         console.log(e);
-            //     },
-            //     error: function(error){
-            //         console.log(error);
-            //     }
-            // });
+
+            $.ajax({
+                type:'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(codes),
+                dataType: 'json',
+                url: 'http://127.0.0.1:5000/',
+                success: function(e){
+                    console.log(e);
+                },
+                error: function(error){
+                    console.log(error);
+                }
+            });
         }
     </script>
 
