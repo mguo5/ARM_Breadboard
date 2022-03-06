@@ -72,6 +72,7 @@ RHLab.Widgets.Breadboard = function() {
         this._notGate = []; // not gate
         this._andGate = []; //and gate
         this._orGate = []; //or gate
+        this._errors = [];
         this._numberOfSwitches = numberOfSwitches || DEFAULT_NUMBER_OF_SWITCHES;
         this._imageBase = imageBase || (window.STATIC_ROOT + "resources/img/");
         this._enableNetwork = (enableNetwork === undefined)?true:enableNetwork;
@@ -376,6 +377,11 @@ RHLab.Widgets.Breadboard = function() {
 
         var processedInputs = [];
         var processedOutputGpios = [];
+        this._errors = [];
+        error_array = this._errors;
+        not_gates = this._notGate;
+        and_gates = this._andGate;
+        or_gates = this._orGate;
         // cycle between all new wires
         for (var i = this._originalNumberOfWires; i < wires.length; i++) {
             var wire = wires[i];
@@ -385,10 +391,19 @@ RHLab.Widgets.Breadboard = function() {
             var gpioPin2 = finder.FindGpioPin(wire._end);
             var gpioPin;
             var otherPoint;
+            
             if (gpioPin1 === null && gpioPin2 === null) {
                 var gate_array = this._notGate;
                 var and_array = this._andGate;
                 var or_array = this._orGate;
+                if(finder.IsPower(wire._start) && finder.IsGround(wire._end)){
+                    this._errors.push(1);   //1: short somewhere, check circuit
+                    break;
+                }
+                else if(finder.IsPower(wire._end) && finder.IsGround(wire._start)){
+                    this._errors.push(1);   //1: short somewhere, check circuit
+                    break;
+                }
                 // add stuff here about valid switch to logic gates
                 /*************************************************** */
                 // It can only go to the LED's
@@ -630,13 +645,150 @@ RHLab.Widgets.Breadboard = function() {
                     }
                 });
                 /******************************************************** */
-                this.ReportError('no-gpio');
-                errors = true;
-                continue;
+                //Check not gate with others
+                
+                $.each(this._notGate, function(position, gate){
+                    var wirePositions = gate.GetPinLocation();
+                    for(var i = 0; i < wirePositions.length; i++){
+                        if(wire._start.x === wirePositions[i]){
+                            //wire._start is a logic wire
+                            $.each(and_gates, function(position, andGate){
+                                var wirePositionsAnd = andGate.GetPinLocation();
+                                for(var j = 0; j < wirePositionsAnd.length; j++){
+                                    if(wire._end.x === wirePositionsAnd[j]){
+                                        if(wire._start.y > gate._topPosition){
+                                            // bottom half
+                                            if(wire._end.y > andGate._topPosition){
+                                                gate.SetValue(i+1, andGate._array_value[j]);
+
+                                            }
+                                            else{
+                                                gate.SetValue(i+1, andGate._array_value[13 - j]);
+
+                                            }
+                                            
+                                        }
+                                        else{
+                                            //top half
+                                            if(wire._end.y > andGate._topPosition){
+                                                gate.SetValue(14-i, andGate._array_value[j]);
+                                            }
+                                            else{
+                                                gate.SetValue(14-i, andGate._array_value[13 - j]);
+                                            }
+                                            
+                                        }
+                                    }
+                                    
+                                }
+                            });
+
+                            $.each(or_gates, function(position, orGate){
+                                var wirePositionsOr = orGate.GetPinLocation();
+                                for(var j = 0; j < wirePositionsOr.length; j++){
+                                    if(wire._end.x === wirePositionsOr[j]){
+                                        if(wire._start.y > gate._topPosition){
+                                            // bottom half
+                                            if(wire._end.y > orGate._topPosition){
+                                                gate.SetValue(i+1, orGate._array_value[j]);
+
+                                            }
+                                            else{
+                                                gate.SetValue(i+1, orGate._array_value[13 - j]);
+
+                                            }
+                                        }
+                                        else{
+                                            //top half
+                                            if(wire._end.y > orGate._topPosition){
+                                                gate.SetValue(14-i, orGate._array_value[j]);
+
+                                            }
+                                            else{
+                                                gate.SetValue(14-i, orGate._array_value[13 - j]);
+
+                                            }
+                                        }
+                                    }
+                                    
+                                }
+                            });
+                        }
+                        else if(wire._end.x === wirePositions[i]){
+                            $.each(and_gates, function(position, andGate){
+                                var wirePositionsAnd = andGate.GetPinLocation();
+                                for(var j = 0; j < wirePositionsAnd.length; j++){
+                                    if(wire._start.x === wirePositionsAnd[j]){
+                                        if(wire._end.y > gate._topPosition){
+                                            // bottom half
+                                            if(wire._start.y > andGate._topPosition){
+                                                gate.SetValue(i+1, andGate._array_value[j]);
+
+                                            }
+                                            else{
+                                                gate.SetValue(i+1, andGate._array_value[13 - j]);
+                                            }
+                                            
+                                        }
+                                        else{
+                                            //top half
+                                            if(wire._start.y > andGate._topPosition){
+                                                gate.SetValue(14-i, andGate._array_value[j]);
+
+                                            }
+                                            else{
+                                                gate.SetValue(14-i, andGate._array_value[13 - j]);
+                                            }
+                                            
+                                        }
+                                    }
+                                    
+                                }
+                            });
+                            $.each(or_gates, function(position, orGate){
+                                var wirePositionsOr = orGate.GetPinLocation();
+                                for(var j = 0; j < wirePositionsOr.length; j++){
+                                    if(wire._start.x === wirePositionsOr[j]){
+                                        if(wire._end.y > gate._topPosition){
+                                            // bottom half
+                                            if(wire._start.y > orGate._topPosition){
+                                                gate.SetValue(i+1, orGate._array_value[j]);
+
+                                            }
+                                            else{
+                                                gate.SetValue(i+1, orGate._array_value[13 - j]);
+                                            }
+                                            
+                                        }
+                                        else{
+                                            //top half
+                                            if(wire._start.y > orGate._topPosition){
+                                                gate.SetValue(14-i, orGate._array_value[j]);
+
+                                            }
+                                            else{
+                                                gate.SetValue(14-i, orGate._array_value[13 - j]);
+                                            }
+                                            
+                                        }
+                                    }
+                                    
+                                }
+                            });
+                        }
+                    
+                    }
+                });
+                
+                /******************************************************** */
+                // this.ReportError('no-gpio');
+                // errors = true;
+                // continue;
             } else if (gpioPin1 != null && gpioPin2 != null ) {
-                this.ReportError('two-gpio');
-                errors = true;
-                continue;
+                // this.ReportError('two-gpio');
+                // errors = true;
+                // continue;
+                this._errors.push(3); //indicates short on GPIO
             } else if (gpioPin1 != null) {
                 gpioPin = gpioPin1;
                 otherPoint = wire._end;
@@ -655,9 +807,10 @@ RHLab.Widgets.Breadboard = function() {
             }
 
             if (previousGpioPins.includes(gpioPin)) {
-                this.ReportError("gpio-already-used");
-                errors = true;
-                continue;
+                // this.ReportError("gpio-already-used");
+                // errors = true;
+                // continue;
+                
             }
 
             if (isInput) {
@@ -779,8 +932,8 @@ RHLab.Widgets.Breadboard = function() {
                             /****************************************** */
     
                         });
-                        errors = true;
-                        continue;
+                        // errors = true;
+                        // continue;
                     }
                 }
             }
@@ -795,6 +948,23 @@ RHLab.Widgets.Breadboard = function() {
         $.each(this._outputState, function (pin, name) {
             if (!processedOutputGpios.includes(parseInt(pin))) {
                 self._ChangeOutput(pin, false);
+            }
+        });
+
+        //*********************Adding error checking */
+        $.each(this._notGate, function (position, gate) {
+            if(gate._array_value[6] !== false || gate._array_value[13] !== true){
+                error_array.push(2); //2 means logic ic not properly powered
+            }
+        });
+        $.each(this._andGate, function (position, gate) {
+            if(gate._array_value[6] !== false || gate._array_value[13] !== true){
+                error_array.push(2); //2 means logic ic not properly powered
+            }
+        });
+        $.each(this._orGate, function (position, gate) {
+            if(gate._array_value[6] !== false || gate._array_value[13] !== true){
+                error_array.push(2); //2 means logic ic not properly powered
             }
         });
        

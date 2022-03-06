@@ -27,7 +27,7 @@
         <button onclick="printLog()">Submit</button>
     </div>
     <div>
-	 <img src="{{ url_for('lab.video_feed') }}" width="500" height="400">
+	 <!--<img src="{{ url_for('lab.video_feed') }}" width="500" height="400">-->
 	</div>
 
 {% endblock %}
@@ -139,19 +139,19 @@
                 codes.push('LBF');
             }
             console.log(codes);
-            $.ajax({
-                type:'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(codes),
-                dataType: 'json',
-                url: 'http://127.0.0.1:5000/',
-                success: function(e){
-                    console.log(e);
-                },
-                error: function(error){
-                    console.log(error);
-                }
-            });
+            // $.ajax({
+            //     type:'POST',
+            //     contentType: 'application/json',
+            //     data: JSON.stringify(codes),
+            //     dataType: 'json',
+            //     url: 'http://127.0.0.1:5000/',
+            //     success: function(e){
+            //         console.log(e);
+            //     },
+            //     error: function(error){
+            //         console.log(error);
+            //     }
+            // });
         }
     </script>
 

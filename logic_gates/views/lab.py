@@ -2,22 +2,22 @@ import secrets
 import os
 from flask import Blueprint, request, session, render_template, jsonify, Response
 lab_blueprint = Blueprint('lab', __name__)
-from .pi_serial import uart_communicate
+# from .pi_serial import uart_communicate
 
 # import camera driver
-if os.environ.get('CAMERA'):
-    Camera = import_module('camera_' + os.environ['CAMERA']).Camera
-else:
-    from .camera_pi import Camera
+# if os.environ.get('CAMERA'):
+#     Camera = import_module('camera_' + os.environ['CAMERA']).Camera
+# else:
+#     from .camera_pi import Camera
 
 @lab_blueprint.route('/', methods=['GET', 'POST'])
 def index():
-    if request.method == 'POST':
-        asd = request.json
-        print(asd)
-        uart = uart_communicate(asd)
-        uart.send_all()
-        return jsonify(success=True)
+    # if request.method == 'POST':
+    #     asd = request.json
+    #     print(asd)
+    #     uart = uart_communicate(asd)
+    #     uart.send_all()
+    #     return jsonify(success=True)
     session['csrf'] = secrets.token_urlsafe()
     return render_template("lab.html")
     
