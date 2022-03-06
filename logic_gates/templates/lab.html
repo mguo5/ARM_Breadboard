@@ -31,7 +31,7 @@
         <button onclick="printLog()">Submit</button>
     </div>
     <div>
-	 <!--<img src="{{ url_for('lab.video_feed') }}" width="500" height="400">-->
+	 <img src="{{ url_for('lab.video_feed') }}" width="500" height="400">
 	</div>
 
 {% endblock %}
@@ -61,24 +61,28 @@
         function printLog(){
             breadboard.Update()
             console.log(breadboard._outputState);
-            // if(breadboard._notGate){
-            //     if(breadboard._notGate['0']._array_value['6'] !== false || breadboard._notGate['0']._array_value['13'] !== true){
-            //         alert("NOT Gate improper wiring. Check Vcc and GND wiring!");
-            //         return;
-            //     }
-            // }
-            // if(breadboard._andGate){
-            //     if(breadboard._andGate['0']._array_value['6'] !== false || breadboard._andGate['0']._array_value['13'] !== true){
-            //         alert("AND Gate improper wiring. Check Vcc and GND wiring!");
-            //         return;
-            //     }
-            // }
-            // if(breadboard._orGate){
-            //     if(breadboard._orGate['0']._array_value['6'] !== false || breadboard._orGate['0']._array_value['13'] !== true){
-            //         alert("OR Gate improper wiring. Check Vcc and GND wiring!");
-            //         return;
-            //     }
-            // }
+            console.log(breadboard._errors);
+            
+            if(breadboard._errors.length){
+                switch(breadboard._errors[0]){
+                        case 1:
+                            alert("Circuit short detected. Please resolve.");
+                        break;
+                        
+                        case 2:
+                            alert("Logic IC not properly powered. Please resolve.");
+                        break;
+                        
+                        case 3:
+                            alert("Improper GPIO configuration. Please resolve.");
+                        break;
+                        
+                        default:
+                        break;
+                }
+                return;
+            }
+
             codes = []
             if(breadboard._outputState['7']){
                 //console.log('GCO');
