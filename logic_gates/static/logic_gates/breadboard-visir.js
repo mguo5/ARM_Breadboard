@@ -250,9 +250,9 @@ RHLab.Widgets.Breadboard = function() {
 
         // 274 and then multiples of 13
         /***************************************************************************************** */
-        var not0 = new Breadboard.NotGate('NG1', this._imageBase, 274, 261);
+        /*var not0 = new Breadboard.NotGate('NG1', this._imageBase, 274, 261);
         this._notGate.push(not0);
-        this.AddComponent(not0);
+        this.AddComponent(not0);*/
         
         // var notGateImage = this._imageBase + "not_gate.png";
         // var not_gate = new Breadboard.Component('NG1', 274, 261, notGateImage, null, 0);
@@ -260,13 +260,16 @@ RHLab.Widgets.Breadboard = function() {
         /***************************************************************************************** */
         //var andGateImage = this._imageBase + "and_gate.png";
         //var and_gate = new Breadboard.Component("AG1", 378, 261, andGateImage, null, 0);
-        var and0 = new Breadboard.AndGate("AG1", this._imageBase, 365, 261);
+        
+        
+        /*var and0 = new Breadboard.AndGate("AG1", this._imageBase, 365, 261);
         this._andGate.push(and0);
-        this.AddComponent(and0);
+        this.AddComponent(and0);*/
 
+        /*
         var or0 = new Breadboard.OrGate("OG1", this._imageBase, 456, 261);
         this._orGate.push(or0);
-        this.AddComponent(or0);
+        this.AddComponent(or0);*/
     }
 
     Breadboard.prototype.AddComponent = function(component) {

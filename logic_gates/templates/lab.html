@@ -23,16 +23,21 @@
             <img src="{{ url_for('static', filename='resources/images/Project_Butterfly.png') }}" height=200px>
         </div>
         
-
-        <div id="breadboard" style="float:left;"></div>
+        <div id="breadboard" style="float:left; padding-right:20px;"></div>
+    </div>
+    <div>
+        <button onclick="printLog()" style="background-color: #4CAF50; border:none; color:white; padding:5px 10px; text-align:center; font-size:14px;">Submit</button>
+        <button onclick="addNotGate(this)" style="padding-left:10px;">Add NOT</button>
+        <button onclick="addAndGate(this)" style="padding-left:10px;">Add AND</button>
+        <button onclick="addOrGate(this)" style="padding-left:10px;">Add OR</button>
+    </div>
+    <div>
+	 <img src="{{ url_for('lab.video_feed') }}" width="500" height="400" style="padding-top: 10px;">
+	</div>
+    <div>
+        <img src="{{ url_for('static', filename='resources/images/pinout.png')}}" width=400px style="float:left;">
         <img src="{{ url_for('static', filename='resources/images/logic_pinout.png') }}" width=200px style="float:left;">
     </div>
-    <div>
-        <button onclick="printLog()">Submit</button>
-    </div>
-    <div>
-	 <img src="{{ url_for('lab.video_feed') }}" width="500" height="400">
-	</div>
 
 {% endblock %}
 
@@ -58,8 +63,32 @@
         var breadboard = new RHLab.Widgets.Breadboard($("#breadboard"), endpointBase, numberOfSwitches, imageBase, false);
     </script>
     <script>
+        function addNotGate(b){
+            var not0 = new RHLab.Widgets.Breadboard.NotGate("NG1", imageBase, 274, 261);
+            breadboard._notGate.push(not0);
+            breadboard.AddComponent(not0);
+            breadboard.Update();
+            b.disabled = true;
+        }
+        function addAndGate(b){
+            var and0 = new RHLab.Widgets.Breadboard.AndGate("AG1", imageBase, 365, 261);
+            breadboard._andGate.push(and0);
+            breadboard.AddComponent(and0);
+            breadboard.Update();
+            b.disabled = true;
+        }
+        function addOrGate(b){
+            var or0 = new RHLab.Widgets.Breadboard.OrGate("OG1", imageBase, 456, 261);
+            breadboard._orGate.push(or0);
+            breadboard.AddComponent(or0);
+            breadboard.Update();
+            b.disabled = true;
+        }
+    </script>
+    <script>
         function printLog(){
             breadboard.Update()
+            console.log(breadboard);
             console.log(breadboard._outputState);
             console.log(breadboard._errors);
             
