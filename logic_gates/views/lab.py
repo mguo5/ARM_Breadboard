@@ -3,6 +3,7 @@ import os
 from flask import Blueprint, request, session, render_template, jsonify, Response
 lab_blueprint = Blueprint('lab', __name__)
 from .pi_serial import uart_communicate
+from .json_format import formatter
 
 # import camera driver
 if os.environ.get('CAMERA'):
@@ -14,8 +15,10 @@ else:
 def index():
     if request.method == 'POST':
         asd = request.json
-        print(asd)
         uart = uart_communicate(asd)
+        codes = formatter(asd)
+        print(codes.convert_to_json())
+        print(codes.convert_to_string())
         uart.send_all()
         return jsonify(success=True)
     session['csrf'] = secrets.token_urlsafe()
