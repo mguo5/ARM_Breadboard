@@ -1,3 +1,15 @@
+/****************************************************
+ * Author: Matt Guo
+ * Course: EE475/EE542
+ * Name: breadboard-visir.js
+ * Affiliation: University of Washington
+ * Functionality: The javascript backend for the Flask breadboard GUI,
+ * handling the client functionality. Breadboard components contain:
+ * switches, not gate, and gate, and or gates. Breadboard.Update() contains
+ * the update method, checked upon every user button click to change the states
+ * of the components in the breadboard
+ ***************************************************/
+// Define RHLab JSON package
 if(typeof(RHLab) === "undefined") {
     RHLab = {};
 }
@@ -5,16 +17,17 @@ if(typeof(RHLab) === "undefined") {
 if(typeof(RHLab.Widgets) === "undefined") {
     RHLab.Widgets = {};
 }
-
+// Initialize the Breadboard container in the RHLab JSON package
 RHLab.Widgets.Breadboard = function() {
 
     var VISIR_SQUARE_SIZE = 13;
     var DEFAULT_NUMBER_OF_SWITCHES = 18;
 
+    // Associate which of the 50-pin GPIO will be outputs (inputs to the microcontroller)
     var OUTPUTS_BY_PIN = {
-         7: 'PC1',  // GPIO6 //PC1
-         8: 'V_SW2',  // GPIO7
-         9: 'V_SW3',  // GPIO8
+        07: 'PC1',  // GPIO6 //PC1
+        08: 'V_SW2',  // GPIO7
+        09: 'V_SW3',  // GPIO8
         10: 'V_SW4',  // GPIO9
         11: 'PA1', //PA1
         12: 'temp',
@@ -53,11 +66,13 @@ RHLab.Widgets.Breadboard = function() {
         47: 'PD15' //Blue
     };
 
+    // Associate which of the microcontroller will be inputs to the breadboard (output from the GPIO)
     var INPUTS_BY_PIN = {
         31: 'V_LED0', // GPIO26
         32: 'V_LED1', // GPIO27
     };
 
+    // Function called by template.html for flask that initalizes a <div> for the breadboard
     function Breadboard($element, endpointBase, numberOfSwitches, imageBase, enableNetwork) {
         var self = this;
         this._components = {};
@@ -72,14 +87,16 @@ RHLab.Widgets.Breadboard = function() {
         this._notGate = []; // not gate
         this._andGate = []; //and gate
         this._orGate = []; //or gate
-        this._errors = [];
+        this._errors = [];  //potential errors
         this._numberOfSwitches = numberOfSwitches || DEFAULT_NUMBER_OF_SWITCHES;
         this._imageBase = imageBase || (window.STATIC_ROOT + "resources/img/");
         this._enableNetwork = (enableNetwork === undefined)?true:enableNetwork;
 
+        // Start off will all of the breadboard outputs as a False
         $.each(OUTPUTS_BY_PIN, function (pinNumber, name) {
             self._outputState[pinNumber] = false;
         });
+        // Start off with all of the breadboard inputs as a False
         $.each(INPUTS_BY_PIN, function (pinNumber, name) {
             self._inputState[pinNumber] = false;
         });
@@ -99,9 +116,11 @@ RHLab.Widgets.Breadboard = function() {
         }
         this._breadboard = new visir.Breadboard(1, $element);
 
+        // Don't need the visir functionality for: Instruments, Power Supplies
         this._HideInstruments();
         this._AddPowerSupplies();
         this._AddComponents();
+        // Create a Delete button to delete wires
         this._$elem.find('.delete').click(function () {
             self.Update();
         });
@@ -158,6 +177,7 @@ RHLab.Widgets.Breadboard = function() {
             var $cirlist = $xml.find("circuitlist");
             $cirlist = $xml.find("circuitlist");
 
+            // Sweeps through the number of original, hardcoded wires in the breadboard
             for(var i=self._originalNumberOfWires;i<this._wires.length; i++) {
                     var w = this._wires[i];
                     var $wire = $("<component/>");
@@ -169,23 +189,25 @@ RHLab.Widgets.Breadboard = function() {
                     $wire.text("W " + c + " " + s.x + " " + s.y + " " + m.x + " " + m.y + " " + e.x + " " + e.y);
                     $cirlist.append($wire);
             }
-
+            // Save all components to the .xml equivalence for later
             return $("<root />").append($xml).html();
         }
 
         window._dbgGlobalBreadboard = this;
     }
 
+    // Loads existing circuit from the .xml file
     Breadboard.prototype.LoadCircuit = function (circuit) {
         this._breadboard.LoadCircuit(circuit);
         this.Update();
     }
     
+    // Saves current circuit to the .xml file
     Breadboard.prototype.SaveCircuit = function () {
         return this._breadboard.SaveCircuitWithoutWires();
     }
 
-
+    // Visir contains a bunch of Instruments, which is unimportant here. We can hide these
     Breadboard.prototype._HideInstruments = function () {
         this._$elem.find('.bin .teacher').hide();
         this._$elem.find('.bin .reset').hide();
@@ -195,6 +217,7 @@ RHLab.Widgets.Breadboard = function() {
         this._$elem.find('.instrument.gnd').hide();
     }
 
+    // Initializes the power supply and voltage rails for the breadboard. We need +3.3V and GND
     Breadboard.prototype._AddPowerSupplies = function () {
         var connections2image = this._$elem.find('.instrument.dcpower img').attr('src');
         var rightPowerSupply = '<div class="instrument gnd" style="left: 586px; top: 398px"><div class="connectionimages"><img src="' + connections2image + '"></div><div class="texts"><div class="connectiontext">GND</div><div class="connectiontext">+3.3V</div></div></div>';
@@ -205,15 +228,18 @@ RHLab.Widgets.Breadboard = function() {
         this._$elem.find('.instrument.dcpower .connectiontext:contains(6V)').text('+3.3V');
     }
 
+    // Function to add existing components to the breadboard. Used for logic gates and switches
     Breadboard.prototype._AddComponents = function () {
 
         var switchesBottomLine = 10;
 
+        // When we initialize, we can specify the number of switches that we would like
         for (var i = 0; i < this._numberOfSwitches; i++) {
             var bottomTopBase;
             var bottomLeftBase;
             var positionX;
 
+            // Store information on where the switches should be located relative to the breadbaord
             if (i < switchesBottomLine) {
                 var positionX = i;
                 var bottomTopBase = 307;
@@ -224,6 +250,7 @@ RHLab.Widgets.Breadboard = function() {
                 var bottomLeftBase = 170;
             }
 
+            // Store information on the top position of each switch
             var topPosition;
             if (i % 2 == 1) {
                 topPosition = bottomTopBase;
@@ -233,58 +260,34 @@ RHLab.Widgets.Breadboard = function() {
             var leftPosition = bottomLeftBase + (VISIR_SQUARE_SIZE * 3) * positionX;
             var identifier = "switch" + i;
             var switchComponent = new Breadboard.Switch(identifier, this._imageBase, leftPosition, topPosition);
+            // Add the switch information to the overall breadboard JSON, useful for debugging
             this._outputs.push(switchComponent);
             this.AddComponent(switchComponent);
         }
 
-        // var led0 = new Breadboard.LED('led0', this._imageBase, 496, 157);
-        // this._inputs.push(led0);
-        // this.AddComponent(led0);
-        // var led1 = new Breadboard.LED('led1', this._imageBase, 522, 157);
-        // this._inputs.push(led1);
-        // this.AddComponent(led1);
-
+        // The 50-pin connectior to the GPIO of the microcontroller should always be there. We can initialize it here
         var jp1Image = this._imageBase + "connections_50.png";
         var jp1 = new Breadboard.Component('JP1', 221, 22, jp1Image, null, 0);
         this.AddComponent(jp1);
-
-        // 274 and then multiples of 13
-        /***************************************************************************************** */
-        /*var not0 = new Breadboard.NotGate('NG1', this._imageBase, 274, 261);
-        this._notGate.push(not0);
-        this.AddComponent(not0);*/
-        
-        // var notGateImage = this._imageBase + "not_gate.png";
-        // var not_gate = new Breadboard.Component('NG1', 274, 261, notGateImage, null, 0);
-        // this.AddComponent(not_gate);
-        /***************************************************************************************** */
-        //var andGateImage = this._imageBase + "and_gate.png";
-        //var and_gate = new Breadboard.Component("AG1", 378, 261, andGateImage, null, 0);
-        
-        
-        /*var and0 = new Breadboard.AndGate("AG1", this._imageBase, 365, 261);
-        this._andGate.push(and0);
-        this.AddComponent(and0);*/
-
-        /*
-        var or0 = new Breadboard.OrGate("OG1", this._imageBase, 456, 261);
-        this._orGate.push(or0);
-        this.AddComponent(or0);*/
     }
 
+    // Add a new component onto the breadboard, send it to the HTML
     Breadboard.prototype.AddComponent = function(component) {
         this._components[component._identifier] = component;
         this._$elem.find('.components').append(component._$elem);
         component.SetBreadboard(this);
     }
 
+    // Input states to the breadboard is the output state of the microcontroller
     Breadboard.prototype.UpdateInputState = function(state) {
         var self = this;
         if (!state.inputs)
             return;
 
+        // check to see if any of the inputs states have or should be changed
         var anyChanged = false;
 
+        // Sweep thorough the pins on the 50-pin GPIO that should be a input
         $.each(this._inputState, function (pinNumber, currentState) {
             var inputName = INPUTS_BY_PIN[pinNumber];
             if (state.inputs[inputName] === undefined || state.inputs[inputName] === null)
@@ -296,6 +299,7 @@ RHLab.Widgets.Breadboard = function() {
             }
         });
 
+        // If there is a change, make sure to update the breadbaord
         if (anyChanged) {
             this.Update();
         }
@@ -359,15 +363,19 @@ RHLab.Widgets.Breadboard = function() {
         return false;
     }
 
+    // Error message handling: there are no errors found
     Breadboard.prototype.ReportOK = function () {
         $('#ll-breadboard-messages').text(ERROR_MESSAGES['ready']);
     }
 
+    // Error message handling: there is a message found
     Breadboard.prototype.ReportError = function (key) {
         $('#ll-breadboard-messages').text(ERROR_MESSAGES[key]);
     }
 
+    // Big function in the javascript code, used to update the entirely of the breadboard layout
     Breadboard.prototype.Update = function() {
+        // Initialize self variables used for checking throughout the update process
         console.log("Updating...")
         var self = this;
 
@@ -381,11 +389,12 @@ RHLab.Widgets.Breadboard = function() {
         var processedInputs = [];
         var processedOutputGpios = [];
         this._errors = [];
+        this._protocol = [];
         error_array = this._errors;
         not_gates = this._notGate;
         and_gates = this._andGate;
         or_gates = this._orGate;
-        // cycle between all new wires
+        // cycle between all new wires that the users have specified
         for (var i = this._originalNumberOfWires; i < wires.length; i++) {
             var wire = wires[i];
 
@@ -394,7 +403,11 @@ RHLab.Widgets.Breadboard = function() {
             var gpioPin2 = finder.FindGpioPin(wire._end);
             var gpioPin;
             var otherPoint;
+
+            // var andLProcessed = -1;
+            // var orLProcessed = -1;
             
+            // This means that the current wire is not connected to a GPIO pin on either end
             if (gpioPin1 === null && gpioPin2 === null) {
                 var gate_array = this._notGate;
                 var and_array = this._andGate;
@@ -407,10 +420,8 @@ RHLab.Widgets.Breadboard = function() {
                     this._errors.push(1);   //1: short somewhere, check circuit
                     break;
                 }
-                // add stuff here about valid switch to logic gates
-                /*************************************************** */
-                // It can only go to the LED's
-                // var found = false;
+
+                // We would now like to check if one of the wires is connected to a logic gate somewhere
                 $.each(this._outputs, function (position, output) {
                     var wireX = output.GetWireX();
                     var wireYBase = output.GetWireYBase();
@@ -418,6 +429,8 @@ RHLab.Widgets.Breadboard = function() {
                     var switch_wire;
                     var logic_wire;
                     var correct_switch = false;
+
+                    // We need to check both ends of the wire to see if one of them is a logic gate
                     if(wireX == wire._start.x){
                         switch_wire = wire._start;
                         logic_wire = wire._end;
@@ -429,8 +442,10 @@ RHLab.Widgets.Breadboard = function() {
                         correct_switch = true;
                     }
 
+                    // One end of the wire is connected to one of the switches on the breadbaoard
                     if(correct_switch){
                         if (switch_wire.y >= wireYBase && switch_wire.y <= (wireYBase + 4*VISIR_SQUARE_SIZE)) {
+                            // Check the other end of the wire to see if it is on a logic gate
                             $.each(gate_array, function (position, gate) {
                                 var wirePositions = gate.GetPinLocation();
                                 for(var i = 0; i < wirePositions.length; i++){
@@ -448,6 +463,7 @@ RHLab.Widgets.Breadboard = function() {
                                 /****************************************** */
         
                             });
+                            // CHeck the other end of the wire to see if it is on an and gate
                             $.each(and_array, function (position, gate) {
                                 var wirePositions = gate.GetPinLocation();
                                 for(var i = 0; i < wirePositions.length; i++){
@@ -466,6 +482,7 @@ RHLab.Widgets.Breadboard = function() {
                                 /****************************************** */
         
                             });
+                            // Check the other end of the wire to see if it is on an or gate
                             $.each(or_array, function (position, gate) {
                                 var wirePositions = gate.GetPinLocation();
                                 for(var i = 0; i < wirePositions.length; i++){
@@ -488,6 +505,9 @@ RHLab.Widgets.Breadboard = function() {
                     }
 
                 });
+
+                // Over here, we need to know if the wire is connected to a logic gate and a power rail, chained together
+                // First we need to check the not gate
                 $.each(this._notGate, function (position, notGate) {
                     var wirePositions =notGate.GetPinLocation();
                     // allow direct pin connections to GND and 3v3
@@ -499,20 +519,25 @@ RHLab.Widgets.Breadboard = function() {
                                 if(wire._start.y > notGate._topPosition){
                                     // bottom half
                                     notGate.SetValue(i+1, true);
+                                    notGate._protocol[i] = "LT";
                                 }
                                 else{
                                     //top half
                                     notGate.SetValue(14-i, true);
+                                    notGate._protocol[13-i] = "LT";
+                                    
                                 }
                             }
                             else if(finder.IsGround(wire._end)){
                                 if(wire._start.y > notGate._topPosition){
                                     // bottom half
                                     notGate.SetValue(i+1, false);
+                                    notGate._protocol[i] = "LF";
                                 }
                                 else{
                                     //top half
                                     notGate.SetValue(14-i, false);
+                                    notGate._protocol[13-i] = "LF";
                                 }
                             }
                         }
@@ -522,50 +547,64 @@ RHLab.Widgets.Breadboard = function() {
                                 if(wire._end.y > notGate._topPosition){
                                     // bottom half
                                     notGate.SetValue(i+1, true);
+                                    notGate._protocol[i] = "LT";
                                 }
                                 else{
                                     //top half
                                     notGate.SetValue(14-i, true);
+                                    notGate._protocol[13-i] = "LT";
                                 }
                             }
                             else if(finder.IsGround(wire._start)){
                                 if(wire._end.y > notGate._topPosition){
                                     // bottom half
                                     notGate.SetValue(i+1, false);
+                                    notGate._protocol[i] = "LF";
                                 }
                                 else{
                                     //top half
                                     notGate.SetValue(14-i, false);
+                                    notGate._protocol[13-i] = "LF";
                                 }
                             }
                         }
                     }
                 });
+                // Over here, we need to know if the wire is connected to a logic gate and a power rail, chained together
+                // Next we need to check the and gate
                 $.each(this._andGate, function (position, andGate) {
                     var wirePositions =andGate.GetPinLocation();
                     // allow direct pin connections to GND and 3v3
                     
-                    for(var i = 0; i < wirePositions.length; i++){
+                    for(let i = 0; i < wirePositions.length; i++){
                         if(wire._start.x === wirePositions[i] && wire._start.y > 150 && wire._start.y < 400){
                             //wire._start is a logic wire
                             if(finder.IsPower(wire._end)){
                                 if(wire._start.y > andGate._topPosition){
                                     // bottom half
                                     andGate.SetValue(i+1, true);
+                                    andGate._protocol[i] = "LT";
+                                    andLProcessed = i;
                                 }
                                 else{
                                     //top half
                                     andGate.SetValue(14-i, true);
+                                    andGate._protocol[13-i] = "LT";
+                                    andLProcessed = 13-i;
                                 }
                             }
                             else if(finder.IsGround(wire._end)){
                                 if(wire._start.y > andGate._topPosition){
                                     // bottom half
                                     andGate.SetValue(i+1, false);
+                                    andGate._protocol[i] = "LF";
+                                    andLProcessed = i;
                                 }
                                 else{
                                     //top half
                                     andGate.SetValue(14-i, false);
+                                    andGate._protocol[13-i] = "LF";
+                                    andLProcessed = 13-i;
                                 }
                             }
                         }
@@ -575,50 +614,64 @@ RHLab.Widgets.Breadboard = function() {
                                 if(wire._end.y > andGate._topPosition){
                                     // bottom half
                                     andGate.SetValue(i+1, true);
+                                    andGate._protocol[i] = "LT";
+                                    andLProcessed = i;
                                 }
                                 else{
                                     //top half
                                     andGate.SetValue(14-i, true);
+                                    andGate._protocol[13-i] = "LT";
+                                    andLProcessed = 13-i;
                                 }
                             }
                             else if(finder.IsGround(wire._start)){
                                 if(wire._end.y > andGate._topPosition){
                                     // bottom half
                                     andGate.SetValue(i+1, false);
+                                    andGate._protocol[i] = "LF";
+                                    andLProcessed = i;
                                 }
                                 else{
                                     //top half
                                     andGate.SetValue(14-i, false);
+                                    andGate._protocol[13-i] = "LF";
+                                    andLProcessed = 13-i;
                                 }
                             }
                         }
                     }
                 });
+                // Over here, we need to know if the wire is connected to a logic gate and a power rail, chained together
+                // Finally we need to check the or gate
                 $.each(this._orGate, function (position, orGate) {
                     var wirePositions =orGate.GetPinLocation();
                     // allow direct pin connections to GND and 3v3
                     
-                    for(var i = 0; i < wirePositions.length; i++){
+                    for(let i = 0; i < wirePositions.length; i++){
                         if(wire._start.x === wirePositions[i] && wire._start.y > 150 && wire._start.y < 400){
                             //wire._start is a logic wire
                             if(finder.IsPower(wire._end)){
                                 if(wire._start.y > orGate._topPosition){
                                     // bottom half
                                     orGate.SetValue(i+1, true);
+                                    orGate._protocol[i] = "LT";
                                 }
                                 else{
                                     //top half
                                     orGate.SetValue(14-i, true);
+                                    orGate._protocol[13-i] = "LT";
                                 }
                             }
                             else if(finder.IsGround(wire._end)){
                                 if(wire._start.y > orGate._topPosition){
                                     // bottom half
                                     orGate.SetValue(i+1, false);
+                                    orGate._protocol[i] = "LF";
                                 }
                                 else{
                                     //top half
                                     orGate.SetValue(14-i, false);
+                                    orGate._protocol[13-i] = "LF";
                                 }
                             }
                         }
@@ -628,35 +681,43 @@ RHLab.Widgets.Breadboard = function() {
                                 if(wire._end.y > orGate._topPosition){
                                     // bottom half
                                     orGate.SetValue(i+1, true);
+                                    orGate._protocol[i] = "LT";
                                 }
                                 else{
                                     //top half
                                     orGate.SetValue(14-i, true);
+                                    orGate._protocol[13-i] = "LT";
                                 }
                             }
                             else if(finder.IsGround(wire._start)){
                                 if(wire._end.y > orGate._topPosition){
                                     // bottom half
                                     orGate.SetValue(i+1, false);
+                                    orGate._protocol[i] = "LF";
                                 }
                                 else{
                                     //top half
                                     orGate.SetValue(14-i, false);
+                                    orGate._protocol[13-i] = "LF";
                                 }
                             }
                         }
                     }
                 });
                 /******************************************************** */
-                //Check not gate with others
-                
+                //Check not gate with others to see if there are multiple logic gates chained together
+                // First, sweep through the not gate
                 $.each(this._notGate, function(position, gate){
+
+                    // obtain the pin locations for the not gate
                     var wirePositions = gate.GetPinLocation();
+                    // sweep through each pin position
                     for(var i = 0; i < wirePositions.length; i++){
                         if(wire._start.x === wirePositions[i]){
                             //wire._start is a logic wire
                             $.each(and_gates, function(position, andGate){
                                 var wirePositionsAnd = andGate.GetPinLocation();
+                                // check to see if the output pin is the same as the input pin for an and gate
                                 for(var j = 0; j < wirePositionsAnd.length; j++){
                                     if(wire._end.x === wirePositionsAnd[j]){
                                         if(wire._start.y > gate._topPosition){
@@ -685,9 +746,10 @@ RHLab.Widgets.Breadboard = function() {
                                     
                                 }
                             });
-
+                            // Next, we need to check if the not gate is connected with an or gate
                             $.each(or_gates, function(position, orGate){
                                 var wirePositionsOr = orGate.GetPinLocation();
+                                // check to see if the output pin is the same as the input pin for an or gate
                                 for(var j = 0; j < wirePositionsOr.length; j++){
                                     if(wire._end.x === wirePositionsOr[j]){
                                         if(wire._start.y > gate._topPosition){
@@ -717,9 +779,12 @@ RHLab.Widgets.Breadboard = function() {
                                 }
                             });
                         }
+                        // Now, we know that it the other end of the wire that is connected to the input gate
                         else if(wire._end.x === wirePositions[i]){
+                            // Sweep through an and gate to see if it is connected with a not gate
                             $.each(and_gates, function(position, andGate){
                                 var wirePositionsAnd = andGate.GetPinLocation();
+                                // sweep through each location of the pins, check if they match
                                 for(var j = 0; j < wirePositionsAnd.length; j++){
                                     if(wire._start.x === wirePositionsAnd[j]){
                                         if(wire._end.y > gate._topPosition){
@@ -749,8 +814,10 @@ RHLab.Widgets.Breadboard = function() {
                                 }
                             });
                             $.each(or_gates, function(position, orGate){
+                                // Sweep through an and gate to see if it is connected with a not gate
                                 var wirePositionsOr = orGate.GetPinLocation();
                                 for(var j = 0; j < wirePositionsOr.length; j++){
+                                    // sweep through each location of the pins, check if they match
                                     if(wire._start.x === wirePositionsOr[j]){
                                         if(wire._end.y > gate._topPosition){
                                             // bottom half
@@ -784,38 +851,31 @@ RHLab.Widgets.Breadboard = function() {
                 });
                 
                 /******************************************************** */
-                // this.ReportError('no-gpio');
-                // errors = true;
-                // continue;
+
             } else if (gpioPin1 != null && gpioPin2 != null ) {
-                // this.ReportError('two-gpio');
-                // errors = true;
-                // continue;
+
                 this._errors.push(3); //indicates short on GPIO
             } else if (gpioPin1 != null) {
                 gpioPin = gpioPin1;
                 otherPoint = wire._end;
+                this._protocol.push("G" + gpioPin.toString());
             } else {
                 gpioPin = gpioPin2;
                 otherPoint = wire._start;
+                this._protocol.push("G" + gpioPin.toString());
             }
 
             var isOutput = OUTPUTS_BY_PIN[gpioPin] !== undefined;
             var isInput = INPUTS_BY_PIN[gpioPin] !== undefined;
 
+            // check to see if the correct output GPIO on the breadboard is being used, report error otherwise
             if (!isOutput && !isInput) {
                 this.ReportError('gpio-not-supported');
                 errors = true;
                 continue;
             }
 
-            if (previousGpioPins.includes(gpioPin)) {
-                // this.ReportError("gpio-already-used");
-                // errors = true;
-                // continue;
-                
-            }
-
+            // This means that there is an input to the breadbaord (an output from the microcontroller)
             if (isInput) {
                 // It can only go to the LED's
                 var found = false;
@@ -823,6 +883,7 @@ RHLab.Widgets.Breadboard = function() {
                     var wireX = input.GetWireX();
                     var wireYBase = input.GetWireYBase();
 
+                    // Check to see with orientation the wire is in
                     if (wireX == otherPoint.x) {
                         if (otherPoint.y >= wireYBase && otherPoint.y <= (wireYBase + 4*VISIR_SQUARE_SIZE)) {
                             var value = self._inputState[gpioPin];
@@ -833,24 +894,27 @@ RHLab.Widgets.Breadboard = function() {
                     }
                 });
 
+                // This means that there is no LED on the breadbaord, indicate an error
                 if (!found) {
                     this.ReportError("input-not-led");
                     errors = true;
                     continue;
                 }
             } else {
+                console.log("isOutput: " + isOutput);
                 // It can only go to ground, voltage or switches
                 var isPower = finder.IsPower(otherPoint);
                 var isGround = finder.IsGround(otherPoint);
                 if (isPower || isGround) {
+                    // Check to see if it is a power
                     if (isPower) {
                         this._ChangeOutput(gpioPin, true);
                     } else {
                         this._ChangeOutput(gpioPin, false);
                     }
                     processedOutputGpios.push(gpioPin);
-                } else {
-                    // if not ground or power... it must be a switch
+                } else if(gpioPin1 != null || gpioPin2 != null){
+                    // if not ground or power... check if its a logic gate
                     var found = false;
                     $.each(this._outputs, function (position, output) {
                         var wireX = output.GetWireX();
@@ -865,37 +929,43 @@ RHLab.Widgets.Breadboard = function() {
                         }
 
                     });
+                    // No input found, this means that the GPIO is directly tied with a logic gate
                     if (!found) {
-                        this.ReportError("output-not-switch-gnd");
-                        // Add things here about checking logic gates
-                        // GPIO to logic gate
-                        /******************************************* */
+
+                        // Find the orientation of the wire
                         if(wire._start.y > 60){
                             var cur_wire = wire._start;
                         }
                         else{
                             var cur_wire = wire._end;
                         }
+                        // First, we need to check the GPIO connection to a not gate
                         $.each(this._notGate, function (position, gate) {
+                            // Sweep through the wire locations on the not gate
                             var wirePositions = gate.GetPinLocation();
                             for(var i = 0; i < wirePositions.length; i++){
+                                // CHeck to see if the GPIO is connected to that not gate
                                 if(cur_wire.x === wirePositions[i]){
                                     if(cur_wire.y > gate._topPosition){
                                         // bottom half
                                         self._ChangeOutput(gpioPin, gate.GetValue(i));
                                         processedOutputGpios.push(gpioPin);
+                                        gate._protocol[i] = "G" + gpioPin.toString();
                                     }
                                     else{
                                         //top half
                                         self._ChangeOutput(gpioPin, gate.GetValue(13-i));
                                         processedOutputGpios.push(gpioPin);
+                                        gate._protocol[13-i] = "G" + gpioPin.toString();
                                     }
                                 }
                             }
                             /****************************************** */
     
                         });
+                        // Next, check to see if the GPIO connection is to an and gate
                         $.each(this._andGate, function (position, gate) {
+                            // sweep through pin locations of the and gate
                             var wirePositions = gate.GetPinLocation();
                             for(var i = 0; i < wirePositions.length; i++){
 
@@ -904,18 +974,30 @@ RHLab.Widgets.Breadboard = function() {
                                         // bottom half
                                         self._ChangeOutput(gpioPin, gate.GetValue(i));
                                         processedOutputGpios.push(gpioPin);
+                                        gate._protocol[i] = "G" + gpioPin.toString();
+                                        // if(i != andLProcessed){
+                                        //     gate._protocol[i] = "G" + gpioPin.toString();
+
+                                        // }
                                     }
                                     else{
                                         //top half
                                         self._ChangeOutput(gpioPin, gate.GetValue(13-i));
                                         processedOutputGpios.push(gpioPin);
+                                        gate._protocol[13-i] = "G" + gpioPin.toString();
+                                        // if((13-i) != andLProcessed){
+                                        //     gate._protocol[13-i] = "G" + gpioPin.toString();
+
+                                        // }
                                     }
                                 }
                             }
                             /****************************************** */
     
                         });
+                        // FInally, check to see if the GPIO connection is to the or gate
                         $.each(this._orGate, function (position, gate) {
+                            // Sweep through available or gate connections for the pins
                             var wirePositions = gate.GetPinLocation();
                             for(var i = 0; i < wirePositions.length; i++){
 
@@ -924,59 +1006,65 @@ RHLab.Widgets.Breadboard = function() {
                                         // bottom half
                                         self._ChangeOutput(gpioPin, gate.GetValue(i));
                                         processedOutputGpios.push(gpioPin);
+                                        gate._protocol[i] = "G" + gpioPin.toString();
                                     }
                                     else{
                                         //top half
                                         self._ChangeOutput(gpioPin, gate.GetValue(13-i));
                                         processedOutputGpios.push(gpioPin);
+                                        gate._protocol[13-i] = "G" + gpioPin.toString();
                                     }
                                 }
                             }
                             /****************************************** */
     
                         });
-                        // errors = true;
-                        // continue;
+
                     }
                 }
             }
             previousGpioPins.push(gpioPin);
         }
 
+        // we found an input pin in the update sweep, thus we need to chagne the state accordingly
         $.each(this._inputs, function (pos, input) {
             if (!processedInputs.includes(input)) {
                 input.SetValue(false);
             }
         });
+        // we found an output pin in the update sweep, thus we need to change the state accordingly
         $.each(this._outputState, function (pin, name) {
             if (!processedOutputGpios.includes(parseInt(pin))) {
                 self._ChangeOutput(pin, false);
             }
         });
 
-        //*********************Adding error checking */
+       // We need to check to see if each not gate is appropriately powered on
         $.each(this._notGate, function (position, gate) {
-            if(gate._array_value[6] !== false || gate._array_value[13] !== true){
+            if(gate._protocol[6] != "LF" || gate._protocol[13] != "LT"){
                 error_array.push(2); //2 means logic ic not properly powered
             }
         });
+        // We need to check to see if each and gate is appropriately powered on
         $.each(this._andGate, function (position, gate) {
-            if(gate._array_value[6] !== false || gate._array_value[13] !== true){
+            if(gate._protocol[6] != "LF" || gate._protocol[13] != "LT"){
                 error_array.push(2); //2 means logic ic not properly powered
             }
         });
+        // We need to check to see if each or gate is appropriately powered on
         $.each(this._orGate, function (position, gate) {
-            if(gate._array_value[6] !== false || gate._array_value[13] !== true){
+            if(gate._protocol[6] != "LF" || gate._protocol[13] != "LT"){
                 error_array.push(2); //2 means logic ic not properly powered
             }
         });
        
+        // We have no errors!
         if (!errors) {
             this.ReportOK();
-            // use inputConnections
         }
     }
 
+    // Breadboard function to change the output of the GPIO pin
     Breadboard.prototype._ChangeOutput = function(pinNumber, value) {
         var pinNumber = parseInt(pinNumber);
         if (this._outputState[pinNumber] === value) {
@@ -987,6 +1075,7 @@ RHLab.Widgets.Breadboard = function() {
         var identifier = OUTPUTS_BY_PIN[pinNumber];
         this._outputState[pinNumber] = value;
 
+        // Potentially used to communicate via post method with flask
         if (this._enableNetwork) {
             $.ajax({
                 type: "POST",
@@ -1004,18 +1093,21 @@ RHLab.Widgets.Breadboard = function() {
         }
     }
 
-
+    // The defintion of each component in the function, called in the template.html to initialize the breadboard
     Breadboard.Component = function (identifier, leftPosition, topPosition, image1, image2, zIndex) {
         this._breadboard = null;
         this._identifier = identifier;
         this._leftPosition = parseInt(leftPosition);
         this._topPosition = parseInt(topPosition);
+        // grab a new <div> to put on the webpage
         this._$elem = $("<div id='" + identifier + "'></div>");
         this._$elem.addClass("component");
         this._$elem.css({'left': parseInt(leftPosition) + 'px', 'top': parseInt(topPosition) + 'px'});
+        // Link the CSS file to the appropraite div
         if (zIndex !== undefined) {
             this._$elem.css({'z-index': 0});
         }
+        // Add in the appropriate images to the breadboard
         this._$elem.append($("<img class='active image1' src='" + image1 + "' draggable='false'>"));
         if (image2) {
             this._$elem.append($("<img class='image2' src='" + image2 + "' draggable='false'>"));
@@ -1026,13 +1118,16 @@ RHLab.Widgets.Breadboard = function() {
         this._breadboard = breadboard;
     }
 
+    // The switch objects in the breadboard
     Breadboard.Switch = function (identifier, imageBase, leftPosition, topPosition) {
         var self = this;
+        // Obtain the two images for the switches from the static folder
         var image1 = imageBase + "switch-left-small.jpg";
         var image2 = imageBase + "switch-right-small.jpg";
 
         Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1, image2);
 
+        // Link appropriate css that makes the mouse become a pointer
         this._$elem.css({'cursor': 'pointer'});
 
         this._value = false;
@@ -1043,28 +1138,35 @@ RHLab.Widgets.Breadboard = function() {
 
     Breadboard.Switch.prototype = Object.create(Breadboard.Component.prototype);
 
+    // change the output state of the switch, triggered upon each user click
     Breadboard.Switch.prototype._Change = function () {
         this._value = !this._value;
 
+        // swap between the two different images
         var $inactiveElement = this._$elem.find('img:not(.active)');
         var $activeElement = this._$elem.find('img.active');
 
+        // set the other one as inactive
         $inactiveElement.addClass('active');
         $activeElement.removeClass('active');
 
+        // Make sure that the breadboard recognizes this change by updating the breadboard state
         if (this._breadboard !== null) {
             this._breadboard.Update();
         }
     };
 
+    // The getter function that returns the current state value of the switch
     Breadboard.Switch.prototype.GetValue = function() {
         return this._value;
     }
 
+    // The getter function that obtains the x value coordinates of where the wire should be
     Breadboard.Switch.prototype.GetWireX = function () {
         return this._leftPosition + 20;
     }
 
+    // The getter function that obtains the y value coordinates of where the wire should be
     Breadboard.Switch.prototype.GetWireYBase = function () {
         if (this._topPosition > 300) 
             return 302;
@@ -1072,11 +1174,15 @@ RHLab.Widgets.Breadboard = function() {
             return 211;
     }
     
+    // The or gate functionality of the breadboard
     Breadboard.OrGate = function(identifier, imageBase, leftPosition, topPosition){
         var self = this;
+
+        // Obtain the or gate image from the static folder to be placed on the breadbaord
         var image1 = imageBase + "or_gate.png";
         Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
 
+        // Array that stores each of the 7 pin locations of the logic gate
         this._pin_location = [
             leftPosition + 7,
             leftPosition + 20,
@@ -1085,8 +1191,9 @@ RHLab.Widgets.Breadboard = function() {
             leftPosition + 59,
             leftPosition + 72,
             leftPosition + 85
-        ]
+        ];
     
+        // Array value that stores the states of each pin of the or gate
         this._array_value = [
             false,
             false,
@@ -1102,45 +1209,67 @@ RHLab.Widgets.Breadboard = function() {
             false,
             false,
             false
-        ]
+        ];
+
+        this._protocol = [
+            null, null,
+            null, null,
+            null, null,
+            null, null,
+            null, null,
+            null, null
+        ];
     }
 
     Breadboard.OrGate.prototype = Object.create(Breadboard.Component.prototype);
 
+    // the getter function that obtains the state value for each pin
     Breadboard.OrGate.prototype.GetValue = function(pin){
         return this._array_value[pin];
     }
 
+    // the getter function that obtains the pin location for each pin
     Breadboard.OrGate.prototype.GetPinLocation = function () {
         return this._pin_location;
     }
 
+    // the setter function that sets the input and output pin states for the or gate
     Breadboard.OrGate.prototype.SetValue = function(pin, value){
+        // pin 1 and pin 2 are the inputs for pin 3
         if(pin === 1 || pin === 2){
             this._array_value[pin - 1] = value;
             this._array_value[2] = this._array_value[0] || this._array_value[1];
         }
+        // pin 4 and pin 5 are the inputs for pin 6
         else if(pin === 4 || pin === 5){
             this._array_value[pin - 1] = value;
             this._array_value[5] = this._array_value[3] || this._array_value[4];
         }
+        // pins 9 and pins 10 are the inputs for pin 8
         else if(pin === 10 || pin === 9){
             this._array_value[pin - 1] = value;
             this._array_value[7] = this._array_value[8] || this._array_value[9];
         }
+        // pins 12 and pins 13 are the inputs for pin 11
         else if(pin === 12 || pin === 13){
             this._array_value[pin - 1] = value;
             this._array_value[10] = this._array_value[11] || this._array_value[12];
         }
+        // otherwise, it has to be a vcc or gnd pin
         else{
             this._array_value[pin - 1] = value;
         }
     }
     // ***********************************************************************************
+    // The and gate functionality of the breadboard
     Breadboard.AndGate = function(identifier, imageBase, leftPosition, topPosition) {
         var self = this;
+
+        // Obtain the or gate image from the static folder to be placed on the breadbaord
         var image1 = imageBase + "and_gate.png";
         Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
+        
+        // Array that stores each of the 7 pin locations of the logic gate
         this._pin_location = [
             leftPosition + 7,
             leftPosition + 20,
@@ -1149,8 +1278,9 @@ RHLab.Widgets.Breadboard = function() {
             leftPosition + 59,
             leftPosition + 72,
             leftPosition + 85
-        ]
+        ];
 
+        // Array value that stores the states of each pin of the logic gate
         this._array_value = [
             false,
             false,
@@ -1166,46 +1296,67 @@ RHLab.Widgets.Breadboard = function() {
             false,
             false,
             false
-        ]
+        ];
+
+        this._protocol = [
+            null, null,
+            null, null,
+            null, null,
+            null, null,
+            null, null,
+            null, null
+        ];
     }
 
     Breadboard.AndGate.prototype = Object.create(Breadboard.Component.prototype);
 
+    // the getter function that obtains the state value for each pin
     Breadboard.AndGate.prototype.GetValue = function(pin){
         return this._array_value[pin];
     }
 
+    // the getter function that obtains the pin location for each pin
     Breadboard.AndGate.prototype.GetPinLocation = function () {
         return this._pin_location;
     }
 
+    // the setter function that sets the input and output pin states for the and gate
     Breadboard.AndGate.prototype.SetValue = function(pin, value){
+        // pin 1 and pin 2 are the inputs for pin 3
         if(pin === 1 || pin === 2){
             this._array_value[pin - 1] = value;
             this._array_value[2] = this._array_value[0] && this._array_value[1];
         }
+        // pin 4 and pin 5 are the inputs for pin 6
         else if(pin === 4 || pin === 5){
             this._array_value[pin - 1] = value;
             this._array_value[5] = this._array_value[3] && this._array_value[4];
         }
+        // pins 9 and pins 10 are the inputs for pin 8
         else if(pin === 10 || pin === 9){
             this._array_value[pin - 1] = value;
             this._array_value[7] = this._array_value[8] && this._array_value[9];
         }
+        // pins 12 and pins 13 are the inputs for pin 11
         else if(pin === 12 || pin === 13){
             this._array_value[pin - 1] = value;
             this._array_value[10] = this._array_value[11] && this._array_value[12];
         }
+        // otherwise, it has to be a vcc or gnd pin
         else{
             this._array_value[pin - 1] = value;
         }
     }
     // ***************************************************************************************************************************
+    // The and gate functionality of the breadboard
     Breadboard.NotGate = function(identifier, imageBase, leftPosition, topPosition) {
         var self = this;
+        // Obtain the or gate image from the static folder to be placed on the breadbaord
         var image1 = imageBase + "not_gate.png";
 
         Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
+        
+        // Array that stores each of the 7 pin locations of the logic gate
         this._pin_location = [
             leftPosition + 7,
             leftPosition + 20,
@@ -1214,8 +1365,9 @@ RHLab.Widgets.Breadboard = function() {
             leftPosition + 59,
             leftPosition + 72,
             leftPosition + 85
-        ]
+        ];
 
+        // Array value that stores the states of each pin of the logic gate
         this._array_value = [
             false,
             true,
@@ -1231,71 +1383,50 @@ RHLab.Widgets.Breadboard = function() {
             false,
             false,
             false
-        ]
+        ];
+
+        this._protocol = [
+            null, null,
+            null, null,
+            null, null,
+            null, null,
+            null, null,
+            null, null
+        ];
     }
 
     Breadboard.NotGate.prototype = Object.create(Breadboard.Component.prototype);
 
+    // the setter function that sets the input and output pin states for the and gate
     Breadboard.NotGate.prototype.SetValue = function(pin, value){
+        // this is the bottom half pins on the not gate
         if(pin === 1 || pin === 3 || pin === 5){
             this._array_value[pin - 1] = value;
             this._array_value[pin] = !value;
         }
+        // this is the top half pins on the not gate
         else if(pin === 9 || pin === 11 || pin === 13){
             this._array_value[pin - 1] = value;
             this._array_value[pin - 2] = !value;
         }
+        // otherwise, it has to be a vcc or gnd pin
         else{
             this._array_value[pin - 1] = value;
         }
     }
 
+    // the getter function that obtains the state value for each pin
     Breadboard.NotGate.prototype.GetValue = function(pin){
         return this._array_value[pin];
     }
 
+    // the getter function that obtains the pin location for each pin
     Breadboard.NotGate.prototype.GetPinLocation = function () {
         return this._pin_location;
     }
     // ***************************************************************************************************************************
-    Breadboard.LED = function (identifier, imageBase, leftPosition, topPosition) {
-        var self = this;
-        var image1 = imageBase + "led-off.png";
-        var image2 = imageBase + "led-on.png";
 
-        Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1, image2);
-
-        this._value = false;
-    };
-
-    Breadboard.LED.prototype = Object.create(Breadboard.Component.prototype);
-
-    Breadboard.LED.prototype.GetValue = function() {
-        return this._value;
-    }
-
-    Breadboard.LED.prototype.SetValue = function(value) {
-        this._value = value;
-        if (value) {
-            this._$elem.find('.image1').removeClass('active');
-            this._$elem.find('.image2').addClass('active');
-        } else {
-            this._$elem.find('.image1').addClass('active');
-            this._$elem.find('.image2').removeClass('active');
-        }
-    }
-
-    Breadboard.LED.prototype.GetWireX = function () {
-        return this._leftPosition + 6;
-    }
-
-    Breadboard.LED.prototype.GetWireYBase = function () {
-        if (this._topPosition > 300) 
-            return 302;
-        else
-            return 211;
-    }
-
+    // All potential error messages that a user may experience
     var ERROR_MESSAGES = {
         "no-gpio": "Error: Every wire must be connected to one GPIO",
         "two-gpio": "Error: Every wire can only be connected to one GPIO",
@@ -1306,6 +1437,7 @@ RHLab.Widgets.Breadboard = function() {
         "ready": "Ready"
     };
 
+    // These are the hardcoded wires and values onto the breadbaord
     function getOriginalWires(numberOfSwitches) {
         var originalWires = ("<circuit>" +
         "   <circuitlist>" +
@@ -1371,6 +1503,7 @@ RHLab.Widgets.Breadboard = function() {
             "      <component>W 0 494 208 495 182 494 156</component>") 
         ];
 
+        // Make sure each switch has those hardcoded values, so that no switch is left unassigned
         for (var i = 0; i < numberOfSwitches; i++) {
             if (i < switchWires.length) {
                 originalWires = originalWires + switchWires[i];
@@ -1384,5 +1517,6 @@ RHLab.Widgets.Breadboard = function() {
         return originalWires;
     }
 
+    // Finally, we are done with the breadbaord. We can return it to the html
     return Breadboard;
 }();

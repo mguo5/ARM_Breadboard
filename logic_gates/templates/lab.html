@@ -21,6 +21,7 @@
         <!--<h1>Virtualized Breadboard</h1>-->
         <div>
             <img src="{{ url_for('static', filename='resources/images/Project_Butterfly.png') }}" height=200px>
+            <p id="protocol"></p>
         </div>
         
         <div id="breadboard" style="float:left; padding-right:20px;"></div>
@@ -32,7 +33,7 @@
         <button onclick="addOrGate(this)" style="padding-left:10px;">Add OR</button>
     </div>
     <div>
-	 <img src="{{ url_for('lab.video_feed') }}" width="500" height="400" style="padding-top: 10px;">
+	 <!-- <img src="{{ url_for('lab.video_feed') }}" width="500" height="400" style="padding-top: 10px;"> -->
 	</div>
     <div>
         <img src="{{ url_for('static', filename='resources/images/pinout.png')}}" width=400px style="float:left;">
@@ -63,6 +64,7 @@
         var breadboard = new RHLab.Widgets.Breadboard($("#breadboard"), endpointBase, numberOfSwitches, imageBase, false);
     </script>
     <script>
+        // Add an NOT gate to the breadboard GUI, triggered when the "Add NOT Gate" button is pressed
         function addNotGate(b){
             var not0 = new RHLab.Widgets.Breadboard.NotGate("NG1", imageBase, 274, 261);
             breadboard._notGate.push(not0);
@@ -70,6 +72,7 @@
             breadboard.Update();
             b.disabled = true;
         }
+        // Add an AND gate to the breadboard GUI, triggered when the "Add AND Gate" button is pressed
         function addAndGate(b){
             var and0 = new RHLab.Widgets.Breadboard.AndGate("AG1", imageBase, 365, 261);
             breadboard._andGate.push(and0);
@@ -77,6 +80,7 @@
             breadboard.Update();
             b.disabled = true;
         }
+        // Add an OR gate to the breadboard GUI, triggered when the "Add OR Gate" button is pressed
         function addOrGate(b){
             var or0 = new RHLab.Widgets.Breadboard.OrGate("OG1", imageBase, 456, 261);
             breadboard._orGate.push(or0);
@@ -85,111 +89,8 @@
             b.disabled = true;
         }
     </script>
-    <script>
-        function printLog(){
-            breadboard.Update()
-            console.log(breadboard);
-            console.log(breadboard._outputState);
-            console.log(breadboard._errors);
-            
-            if(breadboard._errors.length){
-                switch(breadboard._errors[0]){
-                        case 1:
-                            alert("Circuit short detected. Please resolve.");
-                        break;
-                        
-                        case 2:
-                            alert("Logic IC not properly powered. Please resolve.");
-                        break;
-                        
-                        case 3:
-                            alert("Improper GPIO configuration. Please resolve.");
-                        break;
-                        
-                        default:
-                        break;
-                }
-                return;
-            }
-
-            codes = []
-            if(breadboard._outputState['7']){
-                //console.log('GCO');
-                codes.push('GCO');
-            }
-            else{
-                //console.log('GCF');
-                codes.push('GCF');
-            }
-
-            if(breadboard._outputState['11']){
-                //console.log('GAO');
-                codes.push('GAO');
-            }
-            else{
-                //console.log('GAF');
-                codes.push('GAF');
-            }
-
-            if(breadboard._outputState['21']){
-                //console.log('GBO');
-                codes.push('GBO');
-            }
-            else{
-                //console.log('GBF');
-                codes.push('GBF');
-            }
-
-            if(breadboard._outputState['44']){
-                //console.log('LGO');
-                codes.push('LGO');
-            }
-            else{
-                //console.log('LGF');
-                codes.push('LGF');
-            }
-
-            if(breadboard._outputState['45']){
-                //console.log('LOO');
-                codes.push('LOO');
-            }
-            else{
-                //console.log('LOF');
-                codes.push('LOF');
-            }
-
-            if(breadboard._outputState['46']){
-                //console.log('LRO');
-                codes.push('LRO');
-            }
-            else{
-                //console.log('LRF');
-                codes.push('LRF');
-            }
-
-            if(breadboard._outputState['47']){
-                //console.log('LBO');
-                codes.push('LBO');
-            }
-            else{
-                //console.log('LBF');
-                codes.push('LBF');
-            }
-
-            $.ajax({
-                type:'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(codes),
-                dataType: 'json',
-                url: 'http://127.0.0.1:5000/',
-                success: function(e){
-                    console.log(e);
-                },
-                error: function(error){
-                    console.log(error);
-                }
-            });
-        }
+    <script src="{{ url_for('static', filename='logic_gates/client_capture.js') }}">
+        
     </script>
 
 {% endblock %}

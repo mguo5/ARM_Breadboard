@@ -1,3 +1,13 @@
+"""
+Author: Matt Guo
+Course: EE475/542
+Affiliation: University of Washington
+Name: __init__.py
+Functionality: The overarching initialization file for python Flask, at the
+root directiory of the Flask application. This will bundle the python files
+together in a structured format to create the web application.
+"""
+
 from flask import Flask
 from flask_assets import Environment
 
