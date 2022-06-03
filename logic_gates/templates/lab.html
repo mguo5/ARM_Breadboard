@@ -56,7 +56,7 @@
     {% assets "visir_js" %}
     <script src="{{ ASSET_URL }}"></script>
     {% endassets %}
-    <script src="{{ url_for('static', filename='logic_gates/breadboard-visir.js') }}"></script>
+    <script src="{{ url_for('static', filename='logic_gates/breadboard-visir-new.js') }}"></script>
     <script>
         var endpointBase = "{{ url_for('api.index') }}";
         var imageBase = "{{ url_for('static', filename='resources/images/') }}";

@@ -10,9 +10,9 @@
 
  function printLog(){
     breadboard.Update()
-    console.log(breadboard);
-    console.log(breadboard._outputState);
-    console.log(breadboard._errors);
+    // console.log(breadboard);
+    // console.log(breadboard._outputState);
+    // console.log(breadboard._errors);
     
     // Check to see if there are any errors in the errors array
     if(breadboard._errors.length){
