@@ -540,12 +540,74 @@ RHLab.Widgets.Breadboard = function() {
         return messages;
     }
 
+    Breadboard.OrStatus = function(){
+        this.connectedToGround = false;
+        this.connectedToPower = false;
+        // this.originalGate = originalGate;
+
+        this.gate1 = {
+            "input1": null,
+            "input2": null,
+            "output": []
+        };
+
+        this.gate2 = {
+            "input1": null,
+            "input2": null,
+            "output": []
+        };
+
+        this.gate3 = {
+            "input1": null,
+            "input2": null,
+            "output": []
+        };
+
+        this.gate4 = {
+            "input1": null,
+            "input2": null,
+            "output": []
+        };
+
+        this.gates = [this.gate1, this.gate2, this.gate3, this.gate4];
+    }
+
+    Breadboard.OrStatus.prototype.connectInput = function(inputPoint, whichGate, whichInput){
+        this.gates[whichGate-1]["input"+whichInput.toString()] = inputPoint;
+    }
+
+    Breadboard.OrStatus.prototype.connectOutput = function(outputPoint, whichGate){
+        this.gates[whichGate-1]["output"] = outputPoint;
+    }
+
+    Breadboard.OrStatus.prototype.buildProtocolBlocks = function() {
+        // if(!this.connectedToGround){
+        //     return [];
+        // }
+        // if(!this.connectedToPower){
+        //     return [];
+        // }
+
+        var messages = [];
+        $.each(this.gates, function(position, gate){
+            if(gate["output"].length < 1){
+                return;
+            }
+            if(gate["input1"] == null || gate["input2"] == null){
+                return; // TODO: will change later
+            }
+            messages.push("o"+gate["input1"]+gate["input2"]+gate["output"]);
+        });
+        return messages;
+    }
+
     // Big function in the javascript code, used to update the entirely of the breadboard layout
     Breadboard.prototype.Update = function() {
         // Initialize self variables used for checking throughout the update process
         console.log("Updating...");
         var myString = this.CalculateWiringProtocolMessage();
-        console.log(myString);
+        // console.log(myString);
+        return myString;
     }
 
     Breadboard.prototype.CalculateWiringProtocolMessage = function(){
@@ -554,6 +616,7 @@ RHLab.Widgets.Breadboard = function() {
         var helper = new Breadboard.Helper();
         var notStatus = new Breadboard.NotStatus();
         var andStatus = new Breadboard.AndStatus();
+        var orStatus = new Breadboard.OrStatus();
         var componentStatus = [];
         var errors = [];
         var wires = this._breadboard._wires;
@@ -563,6 +626,8 @@ RHLab.Widgets.Breadboard = function() {
         componentStatus.push(notStatus);
         var _andGate = this._andGate;
         componentStatus.push(andStatus);
+        var _orGate = this._orGate;
+        componentStatus.push(orStatus);
         // console.log(_notGate);
         console.log(componentStatus);
         for (var i = this._originalNumberOfWires; i < wires.length; i++) {
@@ -609,10 +674,19 @@ RHLab.Widgets.Breadboard = function() {
                 inputPoint1InputNum = andPinInput[2];
                 point1Code = "a";
             }
-            // var orPinInput = this._orGate.CheckIfInput(point1);
-            // if(orPinInput){
-            //     point1IsOutput = false;
-            // }
+            var orPinInput = [false, -1, -1]; // if in gate, gate location, input num
+            $.each(_orGate, function(pos, gate){
+                orPinInput = gate.CheckIfInput(point1);
+                if(orPinInput[0]){
+                    return false;
+                }
+            });
+            if(orPinInput[0]){
+                point1IsOutput = false;
+                inputPoint1GateNum = orPinInput[1];
+                inputPoint1InputNum = orPinInput[2];
+                point1Code = "o";
+            }
 
             // check output:
             // - check if output of switch, or Power or GND, or output of a logic gate, or output of GPIO
@@ -654,10 +728,18 @@ RHLab.Widgets.Breadboard = function() {
                 outputPoint1GateNum = andPinOutput[1];
                 point1Code = "a";
             }
-            // var orPinOutput = this._orGate.CheckIfOutput(point1);
-            // if(orPinOutput){
-            //     point1IsOutput = true;
-            // }
+            var orPinOutput = [false, -1]; // if in gate, gate num
+            $.each(_orGate, function(pos, gate){
+                orPinOutput = gate.CheckIfOutput(point1);
+                if(orPinOutput[0]){
+                    return false;
+                }
+            });
+            if(orPinOutput[0]){
+                point1IsOutput = true;
+                outputPoint1GateNum = orPinOutput[1];
+                point1Code = "o";
+            }
 
             // check if point2 is a virtual output or a virtual input
             var point2IsOutput = null;
@@ -695,10 +777,18 @@ RHLab.Widgets.Breadboard = function() {
                 inputPoint2InputNum = andPinInput[2];
                 point2Code = "a";
             }
-            // orPinInput = this._orGate.CheckIfInput(point2);
-            // if(orPinInput){
-            //     point2IsOutput = false;
-            // }
+            $.each(_orGate, function(pos, gate){
+                orPinInput = gate.CheckIfInput(point2);
+                if(orPinInput[0]){
+                    return false;
+                }
+            });
+            if(orPinInput[0]){
+                point2IsOutput = false;
+                inputPoint2GateNum = orPinInput[1];
+                inputPoint2InputNum = orPinInput[2];
+                point2Code = "o";
+            }
 
             // check output:
             // - check if output of switch, or Power or GND, or output of a logic gate, or output of GPIO
@@ -738,10 +828,17 @@ RHLab.Widgets.Breadboard = function() {
                 outputPoint1GateNum = andPinOutput[1];
                 point2Code = "a";
             }
-            // notPinOutput = this._orGate.CheckIfOutput(point2);
-            // if(notPintOutput){
-            //     point2IsOutput = true;
-            // }
+            $.each(_orGate, function(pos, gate){
+                orPinOutput = gate.CheckIfOutput(point2);
+                if(orPinOutput[0]){
+                    return false;
+                }
+            });
+            if(orPinOutput[0]){
+                point2IsOutput = true;
+                outputPoint1GateNum = orPinOutput[1];
+                point2Code = "o";
+            }
 
             var inputPoint;
             var inputPointPinNum;
@@ -807,6 +904,9 @@ RHLab.Widgets.Breadboard = function() {
                     else if(whatGate[0] == "and"){
                         andStatus.connectInput("b"+bufferCounter, whatGate[1], point1InputNum);
                     }
+                    else if(whatGate[0] == "or"){
+                        orStatus.connectInput("b"+bufferCounter, whatGate[1], point1InputNum);
+                    }
                 }
                 whatGate = helper.ParseGate(newPoint2Code, outputPointPinNum);
                 if(whatGate[0] != null){
@@ -815,6 +915,9 @@ RHLab.Widgets.Breadboard = function() {
                     }
                     else if(whatGate[0] == "and"){
                         andStatus.connectOutput("b"+bufferCounter, whatGate[1]);
+                    }
+                    else if(whatGate[0] == "or"){
+                        orStatus.connectOutput("b"+bufferCounter, whatGate[1]);
                     }
                 }
                 bufferCounter += 1;
@@ -830,6 +933,9 @@ RHLab.Widgets.Breadboard = function() {
                     else if(whatGate[0] == "and"){
                         andStatus.connectInput(newPoint2Code, whatGate[1], point1InputNum);
                     }
+                    else if(whatGate[0] == "or"){
+                        orStatus.connectInput(newPoint2Code, whatGate[1], point1InputNum);
+                    }
                 }
                 
                 whatGate = helper.ParseGate(newPoint2Code, outputPointPinNum);
@@ -840,6 +946,9 @@ RHLab.Widgets.Breadboard = function() {
                     }
                     else if(whatGate[0] == "and"){
                         andStatus.connectOutput(newPoint1Code, whatGate[1]);
+                    }
+                    else if(whatGate[0] == "or"){
+                        orStatus.connectOutput(newPoint1Code, whatGate[1]);
                     }
                 }
             }
@@ -1063,46 +1172,54 @@ RHLab.Widgets.Breadboard = function() {
 
     Breadboard.OrGate.prototype.CheckIfInput = function(pin){
         // top half
-        if(pin.y > this._topPosition){
+        if(pin.y < this._topPosition && pin.y > 159){
             for(var i = 1; i < this._pin_location.length; i++){
                 if(pin.x === this._pin_location[i]){
                     if(i != 3 && i != 6){
-                        return true;
+                        return [true, i < 3 ? 3 : 4, i < 3 ? i - 3 : i];
                     }
                 }
             }
-            return false;
+            return [false, -1, -1];
         }
         // bottom half
-        else {
+        else if(pin.y >= this._topPosition && pin.y < 406) {
             for(var i = 0; i < this._pin_location.length - 1; i++){
                 if(pin.x === this._pin_location[i]){
                     if(i != 2 && i != 5){
-                        return true;
+                        return [true, i < 2 ? 1 : 2, i < 2 ? i + 1 : i - 2];
                     }
                 }
             }
-            return false;
+            return [false, -1, -1];
 
         }
+        return [false, -1, -1];
     }
 
     Breadboard.OrGate.prototype.CheckIfOutput = function(pin){
         // top half
-        if(pin.y > this._topPosition){
-            if(pin.x === this._pin_location[3] || pin.x === this._pin_location[6]){
-                return true;
+        if(pin.y < this._topPosition && pin.y > 159){
+            if(pin.x === this._pin_location[3]){
+                return [true, 3];
             }
-            return false;
+            else if(pin.x === this._pin_location[6]){
+                return [true, 4]
+            }
+            return [false, -1];
         }
         // bottom half
-        else {
-            if(pin.x === this._pin_location[2] || pin.x === this._pin_location[5]){
-                return true;
+        else if(pin.y >= this._topPosition && pin.y < 406) {
+            if(pin.x === this._pin_location[2]){
+                return [true, 1];
             }
-            return false;
+            else if(pin.x === this._pin_location[5]){
+                return [true, 2];
+            }
+            return [false, -1];
 
         }
+        return [false, -1];
     }
     // ***********************************************************************************
     // The and gate functionality of the breadboard
