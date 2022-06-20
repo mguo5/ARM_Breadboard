@@ -459,12 +459,12 @@ RHLab.Widgets.Breadboard = function() {
     }
 
     Breadboard.NotStatus.prototype.buildProtocolBlocks = function() {
-        // if(!this.connectedToGround){
-        //     return [];
-        // }
-        // if(!this.connectedToPower){
-        //     return [];
-        // }
+        if(!this.connectedToGround){
+            return [];
+        }
+        if(!this.connectedToPower){
+            return [];
+        }
 
         var messages = [];
         $.each(this.gates, function(position, gate){
@@ -520,12 +520,12 @@ RHLab.Widgets.Breadboard = function() {
     }
 
     Breadboard.AndStatus.prototype.buildProtocolBlocks = function() {
-        // if(!this.connectedToGround){
-        //     return [];
-        // }
-        // if(!this.connectedToPower){
-        //     return [];
-        // }
+        if(!this.connectedToGround){
+            return [];
+        }
+        if(!this.connectedToPower){
+            return [];
+        }
 
         var messages = [];
         $.each(this.gates, function(position, gate){
@@ -581,12 +581,12 @@ RHLab.Widgets.Breadboard = function() {
     }
 
     Breadboard.OrStatus.prototype.buildProtocolBlocks = function() {
-        // if(!this.connectedToGround){
-        //     return [];
-        // }
-        // if(!this.connectedToPower){
-        //     return [];
-        // }
+        if(!this.connectedToGround){
+            return [];
+        }
+        if(!this.connectedToPower){
+            return [];
+        }
 
         var messages = [];
         $.each(this.gates, function(position, gate){
@@ -838,6 +838,108 @@ RHLab.Widgets.Breadboard = function() {
                 point2IsOutput = true;
                 outputPoint1GateNum = orPinOutput[1];
                 point2Code = "o";
+            }
+
+            // Check to see if gates are properly powered
+            // not gate
+            var notPowered = null;
+            // check point 1
+            $.each(_notGate, function(pos, gate){
+                notPowered = gate.CheckIfPower(point1);
+                if(notPowered != null){
+                    return false;
+                }
+            });
+            if(notPowered === true && finder.IsPower(point2)){
+                notStatus.connectedToPower = true;
+                continue;
+            }
+            else if(notPowered === false && finder.IsGround(point2)){
+                notStatus.connectedToGround = true;
+                continue;
+            }
+            // check point 2
+            notPowered = null;
+            $.each(_notGate, function(pos, gate){
+                notPowered = gate.CheckIfPower(point2);
+                if(notPowered != null){
+                    return false;
+                }
+            });
+            if(notPowered === true && finder.IsPower(point1)){
+                notStatus.connectedToPower = true;
+                continue;
+            }
+            else if(notPowered === false && finder.IsGround(point1)){
+                notStatus.connectedToGround = true;
+                continue;
+            }
+
+            // and gate
+            // point 1 is on gate
+            var andPowered = null;
+            $.each(_andGate, function(pos, gate){
+                andPowered = gate.CheckIfPower(point1);
+                if(andPowered != null){
+                    return false;
+                }
+            });
+            if(andPowered === true && finder.IsPower(point2)){
+                andStatus.connectedToPower = true;
+                continue;
+            }
+            else if(andPowered === false && finder.IsGround(point2)){
+                andStatus.connectedToGround = true;
+                continue;
+            }
+            // point 2 is on gate
+            andPowered = null;
+            $.each(_andGate, function(pos, gate){
+                andPowered = gate.CheckIfPower(point2);
+                if(andPowered != null){
+                    return false;
+                }
+            });
+            if(andPowered === true && finder.IsPower(point1)){
+                andStatus.connectedToPower = true;
+                continue;
+            }
+            else if(andPowered === false && finder.IsGround(point1)){
+                andStatus.connectedToGround = true;
+                continue;
+            }
+
+            // or gate
+            var orPowered = null;
+            $.each(_orGate, function(pos, gate){
+                orPowered = gate.CheckIfPower(point1);
+                if(orPowered != null){
+                    return false;
+                }
+            });
+            if(orPowered === true && finder.IsPower(point2)){
+                orStatus.connectedToPower = true;
+                continue;
+            }
+            else if(orPowered === false && finder.IsGround(point2)){
+                orStatus.connectedToGround = true;
+                continue;
+            }
+            // point 2 is on gate
+            orPowered = null;
+            $.each(_orGate, function(pos, gate){
+                orPowered = gate.CheckIfPower(point2);
+                if(orPowered != null){
+                    return false;
+                }
+            });
+            if(orPowered === true && finder.IsPower(point1)){
+                orStatus.connectedToPower = true;
+                continue;
+            }
+            else if(orPowered === false && finder.IsGround(point1)){
+                orStatus.connectedToGround = true;
+                continue;
             }
 
             var inputPoint;
@@ -1132,42 +1234,9 @@ RHLab.Widgets.Breadboard = function() {
 
     Breadboard.OrGate.prototype = Object.create(Breadboard.Component.prototype);
 
-    // the getter function that obtains the state value for each pin
-    Breadboard.OrGate.prototype.GetValue = function(pin){
-        return this._array_value[pin];
-    }
-
     // the getter function that obtains the pin location for each pin
     Breadboard.OrGate.prototype.GetPinLocation = function () {
         return this._pin_location;
-    }
-
-    // the setter function that sets the input and output pin states for the or gate
-    Breadboard.OrGate.prototype.SetValue = function(pin, value){
-        // pin 1 and pin 2 are the inputs for pin 3
-        if(pin === 1 || pin === 2){
-            this._array_value[pin - 1] = value;
-            this._array_value[2] = this._array_value[0] || this._array_value[1];
-        }
-        // pin 4 and pin 5 are the inputs for pin 6
-        else if(pin === 4 || pin === 5){
-            this._array_value[pin - 1] = value;
-            this._array_value[5] = this._array_value[3] || this._array_value[4];
-        }
-        // pins 9 and pins 10 are the inputs for pin 8
-        else if(pin === 10 || pin === 9){
-            this._array_value[pin - 1] = value;
-            this._array_value[7] = this._array_value[8] || this._array_value[9];
-        }
-        // pins 12 and pins 13 are the inputs for pin 11
-        else if(pin === 12 || pin === 13){
-            this._array_value[pin - 1] = value;
-            this._array_value[10] = this._array_value[11] || this._array_value[12];
-        }
-        // otherwise, it has to be a vcc or gnd pin
-        else{
-            this._array_value[pin - 1] = value;
-        }
     }
 
     Breadboard.OrGate.prototype.CheckIfInput = function(pin){
@@ -1221,6 +1290,23 @@ RHLab.Widgets.Breadboard = function() {
         }
         return [false, -1];
     }
+
+    Breadboard.OrGate.prototype.CheckIfPower = function(pin){
+        // top half
+        if(pin.y < this._topPosition && pin.y > 159){
+            if(pin.x === this._pin_location[0]){
+                // This is a Vcc pin
+                return true;
+            }
+        }
+        else if(pin.y >= this._topPosition && pin.y < 406){
+            if(pin.x === this._pin_location[6]){
+                // This is a GND pin
+                return false;
+            }
+
+        }
+    }
     // ***********************************************************************************
     // The and gate functionality of the breadboard
     Breadboard.AndGate = function(identifier, imageBase, leftPosition, topPosition) {
@@ -1271,42 +1357,9 @@ RHLab.Widgets.Breadboard = function() {
 
     Breadboard.AndGate.prototype = Object.create(Breadboard.Component.prototype);
 
-    // the getter function that obtains the state value for each pin
-    Breadboard.AndGate.prototype.GetValue = function(pin){
-        return this._array_value[pin];
-    }
-
     // the getter function that obtains the pin location for each pin
     Breadboard.AndGate.prototype.GetPinLocation = function () {
         return this._pin_location;
-    }
-
-    // the setter function that sets the input and output pin states for the and gate
-    Breadboard.AndGate.prototype.SetValue = function(pin, value){
-        // pin 1 and pin 2 are the inputs for pin 3
-        if(pin === 1 || pin === 2){
-            this._array_value[pin - 1] = value;
-            this._array_value[2] = this._array_value[0] && this._array_value[1];
-        }
-        // pin 4 and pin 5 are the inputs for pin 6
-        else if(pin === 4 || pin === 5){
-            this._array_value[pin - 1] = value;
-            this._array_value[5] = this._array_value[3] && this._array_value[4];
-        }
-        // pins 9 and pins 10 are the inputs for pin 8
-        else if(pin === 10 || pin === 9){
-            this._array_value[pin - 1] = value;
-            this._array_value[7] = this._array_value[8] && this._array_value[9];
-        }
-        // pins 12 and pins 13 are the inputs for pin 11
-        else if(pin === 12 || pin === 13){
-            this._array_value[pin - 1] = value;
-            this._array_value[10] = this._array_value[11] && this._array_value[12];
-        }
-        // otherwise, it has to be a vcc or gnd pin
-        else{
-            this._array_value[pin - 1] = value;
-        }
     }
 
     Breadboard.AndGate.prototype.CheckIfInput = function(pin){
@@ -1360,6 +1413,23 @@ RHLab.Widgets.Breadboard = function() {
         }
         return [false, -1];
     }
+
+    Breadboard.AndGate.prototype.CheckIfPower = function(pin){
+        // top half
+        if(pin.y < this._topPosition && pin.y > 159){
+            if(pin.x === this._pin_location[0]){
+                // This is a Vcc pin
+                return true;
+            }
+        }
+        else if(pin.y >= this._topPosition && pin.y < 406){
+            if(pin.x === this._pin_location[6]){
+                // This is a GND pin
+                return false;
+            }
+
+        }
+    }
     // ***************************************************************************************************************************
     // The and gate functionality of the breadboard
     Breadboard.NotGate = function(identifier, imageBase, leftPosition, topPosition) {
@@ -1409,29 +1479,6 @@ RHLab.Widgets.Breadboard = function() {
     }
 
     Breadboard.NotGate.prototype = Object.create(Breadboard.Component.prototype);
-
-    // the setter function that sets the input and output pin states for the and gate
-    Breadboard.NotGate.prototype.SetValue = function(pin, value){
-        // this is the bottom half pins on the not gate
-        if(pin === 1 || pin === 3 || pin === 5){
-            this._array_value[pin - 1] = value;
-            this._array_value[pin] = !value;
-        }
-        // this is the top half pins on the not gate
-        else if(pin === 9 || pin === 11 || pin === 13){
-            this._array_value[pin - 1] = value;
-            this._array_value[pin - 2] = !value;
-        }
-        // otherwise, it has to be a vcc or gnd pin
-        else{
-            this._array_value[pin - 1] = value;
-        }
-    }
-
-    // the getter function that obtains the state value for each pin
-    Breadboard.NotGate.prototype.GetValue = function(pin){
-        return this._array_value[pin];
-    }
 
     // the getter function that obtains the pin location for each pin
     Breadboard.NotGate.prototype.GetPinLocation = function () {
@@ -1484,6 +1531,24 @@ RHLab.Widgets.Breadboard = function() {
             return [false, -1];
         }
         return [false, -1];
+    }
+
+    Breadboard.NotGate.prototype.CheckIfPower = function(pin){
+        // top half
+        if(pin.y < this._topPosition && pin.y > 159){
+            if(pin.x === this._pin_location[0]){
+                // This is a Vcc pin
+                return true;
+            }
+        }
+        else if(pin.y >= this._topPosition && pin.y < 406){
+            if(pin.x === this._pin_location[6]){
+                // This is a GND pin
+                return false;
+            }
+
+        }
+        return null;
     }
     // ***************************************************************************************************************************
 
