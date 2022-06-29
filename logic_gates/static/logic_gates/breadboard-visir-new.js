@@ -9,6 +9,18 @@
  * the update method, checked upon every user button click to change the states
  * of the components in the breadboard
  ***************************************************/
+function extend(Child, Parent){
+    Child.prototype = inherit(Parent.prototype);
+    Child.prototype.constructor = Child;
+    Child.parent = Parent.prototype;
+}
+
+function inherit(proto){
+    function F(){}
+    F.prototype = proto
+    return new F
+}
+
 // Define RHLab JSON package
 if(typeof(RHLab) === "undefined") {
     RHLab = {};
@@ -479,7 +491,129 @@ RHLab.Widgets.Breadboard = function() {
         return messages;
     }
 
-    Breadboard.AndStatus = function(){
+    // Breadboard.AndStatus = function(){
+    //     this.connectedToGround = false;
+    //     this.connectedToPower = false;
+    //     // this.originalGate = originalGate;
+
+    //     this.gate1 = {
+    //         "input1": null,
+    //         "input2": null,
+    //         "output": []
+    //     };
+
+    //     this.gate2 = {
+    //         "input1": null,
+    //         "input2": null,
+    //         "output": []
+    //     };
+
+    //     this.gate3 = {
+    //         "input1": null,
+    //         "input2": null,
+    //         "output": []
+    //     };
+
+    //     this.gate4 = {
+    //         "input1": null,
+    //         "input2": null,
+    //         "output": []
+    //     };
+
+    //     this.gates = [this.gate1, this.gate2, this.gate3, this.gate4];
+    // }
+
+    // Breadboard.AndStatus.prototype.connectInput = function(inputPoint, whichGate, whichInput){
+    //     this.gates[whichGate-1]["input"+whichInput.toString()] = inputPoint;
+    // }
+
+    // Breadboard.AndStatus.prototype.connectOutput = function(outputPoint, whichGate){
+    //     this.gates[whichGate-1]["output"] = outputPoint;
+    // }
+
+    // Breadboard.AndStatus.prototype.buildProtocolBlocks = function() {
+    //     if(!this.connectedToGround){
+    //         return [];
+    //     }
+    //     if(!this.connectedToPower){
+    //         return [];
+    //     }
+
+    //     var messages = [];
+    //     $.each(this.gates, function(position, gate){
+    //         if(gate["output"].length < 1){
+    //             return;
+    //         }
+    //         if(gate["input1"] == null || gate["input2"] == null){
+    //             return; // TODO: will change later
+    //         }
+    //         messages.push("a"+gate["input1"]+gate["input2"]+gate["output"]);
+    //     });
+    //     return messages;
+    // }
+
+    // Breadboard.OrStatus = function(){
+    //     this.connectedToGround = false;
+    //     this.connectedToPower = false;
+    //     // this.originalGate = originalGate;
+
+    //     this.gate1 = {
+    //         "input1": null,
+    //         "input2": null,
+    //         "output": []
+    //     };
+
+    //     this.gate2 = {
+    //         "input1": null,
+    //         "input2": null,
+    //         "output": []
+    //     };
+
+    //     this.gate3 = {
+    //         "input1": null,
+    //         "input2": null,
+    //         "output": []
+    //     };
+
+    //     this.gate4 = {
+    //         "input1": null,
+    //         "input2": null,
+    //         "output": []
+    //     };
+
+    //     this.gates = [this.gate1, this.gate2, this.gate3, this.gate4];
+    // }
+
+    // Breadboard.OrStatus.prototype.connectInput = function(inputPoint, whichGate, whichInput){
+    //     this.gates[whichGate-1]["input"+whichInput.toString()] = inputPoint;
+    // }
+
+    // Breadboard.OrStatus.prototype.connectOutput = function(outputPoint, whichGate){
+    //     this.gates[whichGate-1]["output"] = outputPoint;
+    // }
+
+    // Breadboard.OrStatus.prototype.buildProtocolBlocks = function() {
+    //     if(!this.connectedToGround){
+    //         return [];
+    //     }
+    //     if(!this.connectedToPower){
+    //         return [];
+    //     }
+
+    //     var messages = [];
+    //     $.each(this.gates, function(position, gate){
+    //         if(gate["output"].length < 1){
+    //             return;
+    //         }
+    //         if(gate["input1"] == null || gate["input2"] == null){
+    //             return; // TODO: will change later
+    //         }
+    //         messages.push("o"+gate["input1"]+gate["input2"]+gate["output"]);
+    //     });
+    //     return messages;
+    // }
+
+    Breadboard.QuadDualInputGateStatus = function(){
         this.connectedToGround = false;
         this.connectedToPower = false;
         // this.originalGate = originalGate;
@@ -511,15 +645,15 @@ RHLab.Widgets.Breadboard = function() {
         this.gates = [this.gate1, this.gate2, this.gate3, this.gate4];
     }
 
-    Breadboard.AndStatus.prototype.connectInput = function(inputPoint, whichGate, whichInput){
+    Breadboard.QuadDualInputGateStatus.prototype.connectInput = function(inputPoint, whichGate, whichInput){
         this.gates[whichGate-1]["input"+whichInput.toString()] = inputPoint;
     }
 
-    Breadboard.AndStatus.prototype.connectOutput = function(outputPoint, whichGate){
+    Breadboard.QuadDualInputGateStatus.prototype.connectOutput = function(outputPoint, whichGate){
         this.gates[whichGate-1]["output"] = outputPoint;
     }
 
-    Breadboard.AndStatus.prototype.buildProtocolBlocks = function() {
+    Breadboard.QuadDualInputGateStatus.prototype.buildProtocolBlocks = function(){
         if(!this.connectedToGround){
             return [];
         }
@@ -528,6 +662,7 @@ RHLab.Widgets.Breadboard = function() {
         }
 
         var messages = [];
+        var logicGateCodeName = this.getLogicGateCodeName();
         $.each(this.gates, function(position, gate){
             if(gate["output"].length < 1){
                 return;
@@ -535,70 +670,29 @@ RHLab.Widgets.Breadboard = function() {
             if(gate["input1"] == null || gate["input2"] == null){
                 return; // TODO: will change later
             }
-            messages.push("a"+gate["input1"]+gate["input2"]+gate["output"]);
+            messages.push(logicGateCodeName+gate["input1"]+gate["input2"]+gate["output"]);
         });
         return messages;
+    }
+
+    Breadboard.AndStatus = function(){
+        Breadboard.AndStatus.parent.constructor.apply(this)
+    }
+
+    extend(Breadboard.AndStatus, Breadboard.QuadDualInputGateStatus);
+
+    Breadboard.AndStatus.prototype.getLogicGateCodeName = function(){
+        return "a";
     }
 
     Breadboard.OrStatus = function(){
-        this.connectedToGround = false;
-        this.connectedToPower = false;
-        // this.originalGate = originalGate;
-
-        this.gate1 = {
-            "input1": null,
-            "input2": null,
-            "output": []
-        };
-
-        this.gate2 = {
-            "input1": null,
-            "input2": null,
-            "output": []
-        };
-
-        this.gate3 = {
-            "input1": null,
-            "input2": null,
-            "output": []
-        };
-
-        this.gate4 = {
-            "input1": null,
-            "input2": null,
-            "output": []
-        };
-
-        this.gates = [this.gate1, this.gate2, this.gate3, this.gate4];
+        Breadboard.OrStatus.parent.constructor.apply(this)
     }
 
-    Breadboard.OrStatus.prototype.connectInput = function(inputPoint, whichGate, whichInput){
-        this.gates[whichGate-1]["input"+whichInput.toString()] = inputPoint;
-    }
+    extend(Breadboard.OrStatus, Breadboard.QuadDualInputGateStatus);
 
-    Breadboard.OrStatus.prototype.connectOutput = function(outputPoint, whichGate){
-        this.gates[whichGate-1]["output"] = outputPoint;
-    }
-
-    Breadboard.OrStatus.prototype.buildProtocolBlocks = function() {
-        if(!this.connectedToGround){
-            return [];
-        }
-        if(!this.connectedToPower){
-            return [];
-        }
-
-        var messages = [];
-        $.each(this.gates, function(position, gate){
-            if(gate["output"].length < 1){
-                return;
-            }
-            if(gate["input1"] == null || gate["input2"] == null){
-                return; // TODO: will change later
-            }
-            messages.push("o"+gate["input1"]+gate["input2"]+gate["output"]);
-        });
-        return messages;
+    Breadboard.OrStatus.prototype.getLogicGateCodeName = function(){
+        return "o";
     }
 
     // Big function in the javascript code, used to update the entirely of the breadboard layout
