@@ -708,23 +708,42 @@ RHLab.Widgets.Breadboard = function() {
         // Run through different wires
         var finder = new Breadboard.PinFinder();
         var helper = new Breadboard.Helper();
-        var notStatus = new Breadboard.NotStatus();
-        var andStatus = new Breadboard.AndStatus();
-        var orStatus = new Breadboard.OrStatus();
-        var componentStatus = [];
+        
+        
+        
+        var componentStatus = {};
         var errors = [];
         var wires = this._breadboard._wires;
         var bufferCounter = 0;
 
         var _notGate = this._notGate;
-        componentStatus.push(notStatus);
+        componentStatus.notStatus = [];
+        for(var i = 0; i < _notGate.length; i++){
+            var notStatus = new Breadboard.NotStatus();
+            componentStatus.notStatus.push(notStatus);
+        }
         var _andGate = this._andGate;
-        componentStatus.push(andStatus);
+        componentStatus.andStatus = [];
+        for(var i = 0; i < _andGate.length; i++){
+            var andStatus = new Breadboard.AndStatus();
+            componentStatus.andStatus.push(andStatus);
+        }
         var _orGate = this._orGate;
-        componentStatus.push(orStatus);
+        componentStatus.orStatus = [];
+        for(var i = 0; i < _orGate.length; i++){
+            var orStatus = new Breadboard.OrStatus();
+            componentStatus.orStatus.push(orStatus);
+        }
         // console.log(_notGate);
         console.log(componentStatus);
         for (var i = this._originalNumberOfWires; i < wires.length; i++) {
+            var componentCounterNot1 = 0;
+            var componentCounterAnd1 = 0;
+            var componentCounterOr1 = 0;
+            var componentCounterNot2 = 0;
+            var componentCounterAnd2 = 0;
+            var componentCounterOr2 = 0;
+            var componentCounterLocal = 0;
             // Sweep through the different wires
             var wire = wires[i];
             var point1 = wire._start;
@@ -742,11 +761,14 @@ RHLab.Widgets.Breadboard = function() {
                 point1Code = "g" + gpioPin.toString();
             }
             var notPinInput = [false, -1]; // if in gate, gate location
+            componentCounterLocal = 0;
             $.each(_notGate, function(pos, gate){
                 notPinInput = gate.CheckIfInput(point1);
                 if(notPinInput[0]){
+                    componentCounterNot1 = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             var inputPoint1GateNum = -1;
             var inputPoint1InputNum = 1;
@@ -756,11 +778,14 @@ RHLab.Widgets.Breadboard = function() {
                 point1Code = "n";
             }
             var andPinInput = [false, -1, -1]; // if in gate, gate location, input num
+            componentCounterLocal = 0;
             $.each(_andGate, function(pos, gate){
                 andPinInput = gate.CheckIfInput(point1);
                 if(andPinInput[0]){
+                    componentCounterAnd1 = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             if(andPinInput[0]){
                 point1IsOutput = false;
@@ -769,11 +794,14 @@ RHLab.Widgets.Breadboard = function() {
                 point1Code = "a";
             }
             var orPinInput = [false, -1, -1]; // if in gate, gate location, input num
+            componentCounterLocal = 0;
             $.each(_orGate, function(pos, gate){
                 orPinInput = gate.CheckIfInput(point1);
                 if(orPinInput[0]){
+                    componentCounterOr1 = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             if(orPinInput[0]){
                 point1IsOutput = false;
@@ -798,11 +826,14 @@ RHLab.Widgets.Breadboard = function() {
                 point1Code = "g" + gpioPin.toString();
             }
             var notPinOutput = [false, -1]; // if in gate, gate num
+            componentCounterLocal = 0;
             $.each(_notGate, function(pos, gate){
                 notPinOutput = gate.CheckIfOutput(point1);
                 if(notPinOutput[0]){
+                    componentCounterNot1 = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             var outputPoint1GateNum = -1;
             if(notPinOutput[0]){
@@ -811,11 +842,14 @@ RHLab.Widgets.Breadboard = function() {
                 point1Code = "n";
             }
             var andPinOutput = [false, -1]; // if in gate, gate num
+            componentCounterLocal = 0;
             $.each(_andGate, function(pos, gate){
                 andPinOutput = gate.CheckIfOutput(point1);
                 if(andPinOutput[0]){
+                    componentCounterAnd1 = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             if(andPinOutput[0]){
                 point1IsOutput = true;
@@ -823,18 +857,22 @@ RHLab.Widgets.Breadboard = function() {
                 point1Code = "a";
             }
             var orPinOutput = [false, -1]; // if in gate, gate num
+            componentCounterLocal = 0;
             $.each(_orGate, function(pos, gate){
                 orPinOutput = gate.CheckIfOutput(point1);
                 if(orPinOutput[0]){
+                    componentCounterOr1 = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             if(orPinOutput[0]){
                 point1IsOutput = true;
                 outputPoint1GateNum = orPinOutput[1];
                 point1Code = "o";
             }
-
+            // ======================= Marks the end of Point 1 =================================
+            // ======================= Marks the start of Point 2 ===============================
             // check if point2 is a virtual output or a virtual input
             var point2IsOutput = null;
             var point2Code = "";
@@ -846,11 +884,14 @@ RHLab.Widgets.Breadboard = function() {
                 point2IsOutput = false;
                 point2Code = "g" + gpioPin.toString();
             }
+            componentCounterLocal = 0;
             $.each(_notGate, function(pos, gate){
                 notPinInput = gate.CheckIfInput(point2);
                 if(notPinInput[0]){
+                    componentCounterNot2 = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             var inputPoint2GateNum = -1;
             var inputPoint2InputNum = 1;
@@ -859,11 +900,14 @@ RHLab.Widgets.Breadboard = function() {
                 inputPoint2GateNum = notPinInput[1];
                 point2Code = "n";
             }
+            componentCounterLocal = 0;
             $.each(_andGate, function(pos, gate){
                 andPinInput = gate.CheckIfInput(point2);
                 if(andPinInput[0]){
+                    componentCounterAnd2 = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             if(andPinInput[0]){
                 point2IsOutput = false;
@@ -871,11 +915,14 @@ RHLab.Widgets.Breadboard = function() {
                 inputPoint2InputNum = andPinInput[2];
                 point2Code = "a";
             }
+            componentCounterLocal = 0;
             $.each(_orGate, function(pos, gate){
                 orPinInput = gate.CheckIfInput(point2);
                 if(orPinInput[0]){
+                    componentCounterOr2 = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             if(orPinInput[0]){
                 point2IsOutput = false;
@@ -899,11 +946,14 @@ RHLab.Widgets.Breadboard = function() {
                 point2IsOutput = true;
                 point2Code = "g" + gpioPin.toString();
             }
+            componentCounterLocal = 0;
             $.each(_notGate, function(pos, gate){
                 notPinOutput = gate.CheckIfOutput(point2);
                 if(notPinOutput[0]){
+                    componentCounterNot2 = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             var outputPoint2GateNum = -1;
             if(notPinOutput[0]){
@@ -911,22 +961,28 @@ RHLab.Widgets.Breadboard = function() {
                 outputPoint2GateNum = notPinOutput[1];
                 point2Code = "n";
             }
+            componentCounterLocal = 0;
             $.each(_andGate, function(pos, gate){
                 andPinOutput = gate.CheckIfOutput(point2);
                 if(andPinOutput[0]){
+                    componentCounterAnd2 = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             if(andPinOutput[0]){
                 point2IsOutput = true;
                 outputPoint1GateNum = andPinOutput[1];
                 point2Code = "a";
             }
+            componentCounterLocal = 0;
             $.each(_orGate, function(pos, gate){
                 orPinOutput = gate.CheckIfOutput(point2);
                 if(orPinOutput[0]){
+                    componentCounterOr2 = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             if(orPinOutput[0]){
                 point2IsOutput = true;
@@ -936,103 +992,124 @@ RHLab.Widgets.Breadboard = function() {
 
             // Check to see if gates are properly powered
             // not gate
+            var componentCounterNot = 0;
+            var componentCounterAnd = 0;
+            var componentCounterOr = 0;
             var notPowered = null;
             // check point 1
+            componentCounterLocal = 0;
             $.each(_notGate, function(pos, gate){
                 notPowered = gate.CheckIfPower(point1);
                 if(notPowered != null){
+                    componentCounterNot = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             if(notPowered === true && finder.IsPower(point2)){
-                notStatus.connectedToPower = true;
+                componentStatus.notStatus[componentCounterNot].connectedToPower = true;
                 continue;
             }
             else if(notPowered === false && finder.IsGround(point2)){
-                notStatus.connectedToGround = true;
+                componentStatus.notStatus[componentCounterNot].connectedToGround = true;
                 continue;
             }
             // check point 2
             notPowered = null;
+            componentCounterLocal = 0;
             $.each(_notGate, function(pos, gate){
                 notPowered = gate.CheckIfPower(point2);
                 if(notPowered != null){
+                    componentCounterNot = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             if(notPowered === true && finder.IsPower(point1)){
-                notStatus.connectedToPower = true;
+                componentStatus.notStatus[componentCounterNot].connectedToPower = true;
                 continue;
             }
             else if(notPowered === false && finder.IsGround(point1)){
-                notStatus.connectedToGround = true;
+                componentStatus.notStatus[componentCounterNot].connectedToGround = true;
                 continue;
             }
 
             // and gate
             // point 1 is on gate
             var andPowered = null;
+            componentCounterLocal = 0;
             $.each(_andGate, function(pos, gate){
                 andPowered = gate.CheckIfPower(point1);
                 if(andPowered != null){
+                    componentCounterAnd = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             if(andPowered === true && finder.IsPower(point2)){
-                andStatus.connectedToPower = true;
+                componentStatus.andStatus[componentCounterAnd].connectedToPower = true;
                 continue;
             }
             else if(andPowered === false && finder.IsGround(point2)){
-                andStatus.connectedToGround = true;
+                componentStatus.andStatus[componentCounterAnd].connectedToGround = true;
                 continue;
             }
             // point 2 is on gate
             andPowered = null;
+            componentCounterLocal = 0;
             $.each(_andGate, function(pos, gate){
                 andPowered = gate.CheckIfPower(point2);
                 if(andPowered != null){
+                    componentCounterAnd = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             if(andPowered === true && finder.IsPower(point1)){
-                andStatus.connectedToPower = true;
+                componentStatus.andStatus[componentCounterAnd].connectedToPower = true;
                 continue;
             }
             else if(andPowered === false && finder.IsGround(point1)){
-                andStatus.connectedToGround = true;
+                componentStatus.andStatus[componentCounterAnd].connectedToGround = true;
                 continue;
             }
 
             // or gate
             var orPowered = null;
+            componentCounterLocal = 0;
             $.each(_orGate, function(pos, gate){
                 orPowered = gate.CheckIfPower(point1);
                 if(orPowered != null){
+                    componentCounterOr = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             if(orPowered === true && finder.IsPower(point2)){
-                orStatus.connectedToPower = true;
+                componentStatus.orStatus[componentCounterOr].connectedToPower = true;
                 continue;
             }
             else if(orPowered === false && finder.IsGround(point2)){
-                orStatus.connectedToGround = true;
+                componentStatus.orStatus[componentCounterOr].connectedToGround = true;
                 continue;
             }
             // point 2 is on gate
             orPowered = null;
+            componentCounterLocal = 0;
             $.each(_orGate, function(pos, gate){
                 orPowered = gate.CheckIfPower(point2);
                 if(orPowered != null){
+                    componentCounterOr = componentCounterLocal;
                     return false;
                 }
+                componentCounterLocal += 1;
             });
             if(orPowered === true && finder.IsPower(point1)){
-                orStatus.connectedToPower = true;
+                componentStatus.orStatus[componentCounterOr].connectedToPower = true;
                 continue;
             }
             else if(orPowered === false && finder.IsGround(point1)){
-                orStatus.connectedToGround = true;
+                componentStatus.orStatus[componentCounterOr].connectedToGround = true;
                 continue;
             }
 
@@ -1071,6 +1148,15 @@ RHLab.Widgets.Breadboard = function() {
                 newPoint2Code = point1Code;
                 point1InputNum = inputPoint2InputNum;
                 point2InputNum = inputPoint1InputNum;
+                var tempNot = componentCounterNot1;
+                var tempAnd = componentCounterAnd1;
+                var tempOr = componentCounterOr1;
+                componentCounterNot1 = componentCounterNot2;
+                componentCounterAnd1 = componentCounterAnd2;
+                componentCounterOr1 = componentCounterOr2;
+                componentCounterNot2 = tempNot;
+                componentCounterAnd2 = tempAnd;
+                componentCounterOr2 = tempOr;
             }
             else if(!point1IsOutput && !point2IsOutput){
                 // both are inputs. For now, we will return error
@@ -1095,25 +1181,29 @@ RHLab.Widgets.Breadboard = function() {
                 var whatGate = helper.ParseGate(newPoint1Code, inputPointPinNum);
                 if(whatGate[0] != null){
                     if(whatGate[0] == "not"){
-                        notStatus.connectInput("b"+bufferCounter, whatGate[1]);
+                        componentStatus.notStatus[componentCounterNot1].connectInput("b"+bufferCounter, whatGate[1]);
                     }
                     else if(whatGate[0] == "and"){
-                        andStatus.connectInput("b"+bufferCounter, whatGate[1], point1InputNum);
+                        componentStatus.andStatus[componentCounterAnd1].connectInput("b"+bufferCounter, whatGate[1], point1InputNum);
+                        
                     }
                     else if(whatGate[0] == "or"){
-                        orStatus.connectInput("b"+bufferCounter, whatGate[1], point1InputNum);
+                        componentStatus.orStatus[componentCounterOr1].connectInput("b"+bufferCounter, whatGate[1], point1InputNum);
+                        
                     }
                 }
                 whatGate = helper.ParseGate(newPoint2Code, outputPointPinNum);
                 if(whatGate[0] != null){
                     if(whatGate[0] == "not"){
-                        notStatus.connectOutput("b"+bufferCounter, whatGate[1]);
+                        componentStatus.notStatus[componentCounterNot2].connectOutput("b"+bufferCounter, whatGate[1]);
                     }
                     else if(whatGate[0] == "and"){
-                        andStatus.connectOutput("b"+bufferCounter, whatGate[1]);
+                        componentStatus.andStatus[componentCounterAnd2].connectOutput("b"+bufferCounter, whatGate[1], point1InputNum);
+                        
                     }
                     else if(whatGate[0] == "or"){
-                        orStatus.connectOutput("b"+bufferCounter, whatGate[1]);
+                        componentStatus.orStatus[componentCounterOr2].connectOutput("b"+bufferCounter, whatGate[1], point1InputNum);
+                        
                     }
                 }
                 bufferCounter += 1;
@@ -1124,13 +1214,13 @@ RHLab.Widgets.Breadboard = function() {
                 // console.log(whatGate);
                 if(whatGate[0] != null){
                     if(whatGate[0] == "not"){
-                        notStatus.connectInput(newPoint2Code, whatGate[1]);
+                        componentStatus.notStatus[componentCounterNot1].connectInput(newPoint2Code, whatGate[1]);
                     }
                     else if(whatGate[0] == "and"){
-                        andStatus.connectInput(newPoint2Code, whatGate[1], point1InputNum);
+                        componentStatus.andStatus[componentCounterAnd1].connectInput(newPoint2Code, whatGate[1], point1InputNum);
                     }
                     else if(whatGate[0] == "or"){
-                        orStatus.connectInput(newPoint2Code, whatGate[1], point1InputNum);
+                        componentStatus.orStatus[componentCounterOr1].connectInput(newPoint2Code, whatGate[1], point1InputNum);
                     }
                 }
                 
@@ -1138,13 +1228,13 @@ RHLab.Widgets.Breadboard = function() {
                 // console.log(whatGate);
                 if(whatGate[0] != null){
                     if(whatGate[0] == "not"){
-                        notStatus.connectOutput(newPoint1Code, whatGate[1]);
+                        componentStatus.notStatus[componentCounterNot2].connectOutput(newPoint1Code, whatGate[1]);
                     }
                     else if(whatGate[0] == "and"){
-                        andStatus.connectOutput(newPoint1Code, whatGate[1]);
+                        componentStatus.andStatus[componentCounterAnd2].connectOutput(newPoint1Code, whatGate[1]);
                     }
                     else if(whatGate[0] == "or"){
-                        orStatus.connectOutput(newPoint1Code, whatGate[1]);
+                        componentStatus.orStatus[componentCounterOr2].connectOutput(newPoint1Code, whatGate[1]);
                     }
                 }
             }
@@ -1156,13 +1246,15 @@ RHLab.Widgets.Breadboard = function() {
         }
         var messages = [];
         $.each(componentStatus, function(pos, particularComponentStatus){
-            var currentMessages = particularComponentStatus.buildProtocolBlocks();
-            for(var i = 0; i < currentMessages.length; i++){
-                var currentMessage = currentMessages[i];
-                if(!messages.includes(currentMessage)){
-                    messages.push(currentMessage);
-                } 
-            }
+            $.each(particularComponentStatus, function(pos, gate){
+                var currentMessages = gate.buildProtocolBlocks();
+                for(var i = 0; i < currentMessages.length; i++){
+                    var currentMessage = currentMessages[i];
+                    if(!messages.includes(currentMessage)){
+                        messages.push(currentMessage);
+                    } 
+                }
+            });
         });
         var wiringProtocolMessage = messages.join(";");
         return wiringProtocolMessage;

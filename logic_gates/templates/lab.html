@@ -74,8 +74,10 @@
         }
         // Add an AND gate to the breadboard GUI, triggered when the "Add AND Gate" button is pressed
         function addAndGate(b){
-            var and0 = new RHLab.Widgets.Breadboard.AndGate("AG1", imageBase, 365, 261);
-            breadboard._andGate.push(and0);
+            // var and0 = new RHLab.Widgets.Breadboard.AndGate("AG1", imageBase, 365, 261);
+            var and0 = new RHLab.Widgets.Breadboard.NotGate("AG1", imageBase, 365, 261);
+            // breadboard._andGate.push(and0);
+            breadboard._notGate.push(and0);
             breadboard.AddComponent(and0);
             breadboard.Update();
             b.disabled = true;
