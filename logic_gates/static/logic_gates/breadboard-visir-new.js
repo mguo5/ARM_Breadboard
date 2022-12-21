@@ -467,7 +467,7 @@ RHLab.Widgets.Breadboard = function() {
     }
 
     Breadboard.NotStatus.prototype.connectOutput = function(outputPoint, whichGate){
-        this.gates[whichGate-1]["output"] = outputPoint;
+        this.gates[whichGate-1]["output"].push( outputPoint);
     }
 
     Breadboard.NotStatus.prototype.buildProtocolBlocks = function() {
@@ -486,7 +486,23 @@ RHLab.Widgets.Breadboard = function() {
             if(gate["input"] == null){
                 return; // TODO: will change later
             }
-            messages.push("n"+gate["input"]+gate["output"]);
+            if(gate["output"].length == 1){
+                // only one output
+                messages.push('n'+gate["input"]+gate["output"]);
+            }
+            else{
+                var temp = 'n'+gate["input"];
+                for(var i = 0; i < gate["output"].length; i++){
+                    if(i < gate["output"].length - 1){
+                        temp = temp + gate["output"][i] + ',';
+                    }
+                    else{
+                        temp = temp + gate["output"][i];
+                    }
+                    
+                }
+                messages.push(temp);
+            }
         });
         return messages;
     }
@@ -650,7 +666,7 @@ RHLab.Widgets.Breadboard = function() {
     }
 
     Breadboard.QuadDualInputGateStatus.prototype.connectOutput = function(outputPoint, whichGate){
-        this.gates[whichGate-1]["output"] = outputPoint;
+        this.gates[whichGate-1]["output"].push(outputPoint);
     }
 
     Breadboard.QuadDualInputGateStatus.prototype.buildProtocolBlocks = function(){
@@ -670,7 +686,24 @@ RHLab.Widgets.Breadboard = function() {
             if(gate["input1"] == null || gate["input2"] == null){
                 return; // TODO: will change later
             }
-            messages.push(logicGateCodeName+gate["input1"]+gate["input2"]+gate["output"]);
+            if(gate["output"].length == 1){
+                // only one output
+                messages.push(logicGateCodeName+gate["input1"]+gate["input2"]+gate["output"]);
+            }
+            else{
+                var temp = logicGateCodeName+gate["input1"]+gate["input2"];
+                for(var i = 0; i < gate["output"].length; i++){
+                    if(i < gate["output"].length - 1){
+                        temp = temp + gate["output"][i] + ',';
+                    }
+                    else{
+                        temp = temp + gate["output"][i];
+                    }
+                    
+                }
+                messages.push(temp);
+            }
+            
         });
         return messages;
     }
@@ -1677,7 +1710,7 @@ RHLab.Widgets.Breadboard = function() {
             // 9, 11, 13
             for(var i = 1; i < this._pin_location.length; i++){
                 if(pin.x === this._pin_location[i] && (i % 2 != 0)){
-                    return [true, Math.floor(i/2)+1];
+                    return [true, Math.floor((i+7)/2)-1];
                 }
             }
             return [false, -1];
@@ -1701,7 +1734,7 @@ RHLab.Widgets.Breadboard = function() {
             // 8, 10, 12
             for(var i = 1; i < this._pin_location.length; i++){
                 if(pin.x === this._pin_location[i] && (i % 2 == 0)){
-                    return [true, i/2];
+                    return [true, Math.floor((i+7)/2)];
                 }
             }
             return [false, -1];
