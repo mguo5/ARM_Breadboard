@@ -1,0 +1,8 @@
+Running on Windows:
+- copy and paste the 3 lines from devrc.bat onto the terminal
+- then run: "flask run"
+
+Running on Mac:
+- run ./devrc
+- (maybe) need to run the 3 lines from devrc individually
+- then run: "python3 -m flask run"
