@@ -387,7 +387,7 @@ RHLab.Widgets.Breadboard = function() {
 
     Breadboard.Helper = function(){
         this.gpioCodeType = "g";
-        this.literalCodeType = "l";      // May need to expand
+        this.literalCodeType = "L";      // May need to expand
         this.gateTypes = {
             "n": "not",
             "a": "and",
@@ -847,16 +847,23 @@ RHLab.Widgets.Breadboard = function() {
             // - check if output of switch, or Power or GND, or output of a logic gate, or output of GPIO
             if(finder.IsPower(point1)){
                 point1IsOutput = true;
-                point1Code = "lT";
+                point1Code = "LT";
             }
             else if(finder.IsGround(point1)){
                 point1IsOutput = true;
-                point1Code = "lF";
+                point1Code = "LF";
             }
             var isVirtualOutput = OUTPUTS_BY_PIN[gpioPin] !== undefined;
             if(isVirtualOutput){
                 point1IsOutput = true;
-                point1Code = "g" + gpioPin.toString();
+                if(gpioPin < 10){
+                    // i.e. g07 or g09. Add a '0' string to have 2 numbers after g
+                    point1Code = "g" + "0" + gpioPin.toString();
+                }
+                else{
+                    // i.e. g17 or g31. Will always have 2 numbers after g
+                    point1Code = "g" + gpioPin.toString();
+                }
             }
             var notPinOutput = [false, -1]; // if in gate, gate num
             componentCounterLocal = 0;
@@ -915,7 +922,15 @@ RHLab.Widgets.Breadboard = function() {
             isVirtualInput = INPUTS_BY_PIN[gpioPin] !== undefined;
             if(isVirtualInput){
                 point2IsOutput = false;
-                point2Code = "g" + gpioPin.toString();
+                if(gpioPin < 10){
+                    // i.e. g07 or g09. Add a '0' string to have 2 numbers after g
+                    point2Code = "g" + "0" + gpioPin.toString();
+                }
+                else{
+                    // i.e. g17 or g31. Will always have 2 numbers after g
+                    point2Code = "g" + gpioPin.toString();
+                }
+                
             }
             componentCounterLocal = 0;
             $.each(_notGate, function(pos, gate){
@@ -968,11 +983,11 @@ RHLab.Widgets.Breadboard = function() {
             // - check if output of switch, or Power or GND, or output of a logic gate, or output of GPIO
             if(finder.IsPower(point2)){
                 point2IsOutput = true;
-                point2Code = "lT";
+                point2Code = "LT";
             }
             else if(finder.IsGround(point2)){
                 point2IsOutput = true;
-                point2Code = "lF";
+                point2Code = "LF";
             }
             isVirtualOutput = OUTPUTS_BY_PIN[gpioPin] !== undefined;
             if(isVirtualOutput){
@@ -1290,6 +1305,7 @@ RHLab.Widgets.Breadboard = function() {
             });
         });
         var wiringProtocolMessage = messages.join(";");
+        wiringProtocolMessage = wiringProtocolMessage + "\n";
         return wiringProtocolMessage;
 
     }
