@@ -774,6 +774,9 @@ RHLab.Widgets.Breadboard = function() {
             var orStatus = new Breadboard.OrStatus();
             componentStatus.orStatus.push(orStatus);
         }
+
+        var nonGateLeftovers = [];
+
         // console.log(_notGate);
         console.log(componentStatus);
         for (var i = this._originalNumberOfWires; i < wires.length; i++) {
@@ -1265,7 +1268,7 @@ RHLab.Widgets.Breadboard = function() {
             // point1Code: g17, T, F, n, ST
             // inputPointPinNum = gate number (only if point1Code is n)
             // outputPointPinNum = gate number (only if point1Code is n)
-
+            var leftOversMessage = "";
             // Check if needs buffer
             var needsBuffer = helper.NeedBuffer(newPoint1Code, newPoint2Code);
             if(needsBuffer){
@@ -1313,6 +1316,10 @@ RHLab.Widgets.Breadboard = function() {
                     else if(whatGate[0] == "or"){
                         componentStatus.orStatus[componentCounterOr1].connectInput(newPoint2Code, whatGate[1], point1InputNum);
                     }
+                    else{
+                        // not a gate
+                        leftOversMessage = "y" + newPoint2Code;
+                    }
                 }
                 
                 whatGate = helper.ParseGate(newPoint2Code, outputPointPinNum);
@@ -1327,6 +1334,15 @@ RHLab.Widgets.Breadboard = function() {
                     else if(whatGate[0] == "or"){
                         componentStatus.orStatus[componentCounterOr2].connectOutput(newPoint1Code, whatGate[1]);
                     }
+                    else{
+                        // only append to the end portion if the first part was also called
+                        if(leftOversMessage){
+                            leftOversMessage += newPoint1Code;
+                            nonGateLeftovers.push(leftOversMessage);
+                        }
+                        
+                    }
+
                 }
             }
 
@@ -1347,9 +1363,11 @@ RHLab.Widgets.Breadboard = function() {
                 }
             });
         });
-
         
         var wiringProtocolMessage = messages.join(";");
+        if(nonGateLeftovers){
+            wiringProtocolMessage += ";" + nonGateLeftovers.join(";");
+        }
         wiringProtocolMessage = wiringProtocolMessage + "\n";
         return wiringProtocolMessage;
 
