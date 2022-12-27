@@ -388,6 +388,7 @@ RHLab.Widgets.Breadboard = function() {
     Breadboard.Helper = function(){
         this.gpioCodeType = "g";
         this.literalCodeType = "L";      // May need to expand
+        this.switchCodeType = "S";
         this.gateTypes = {
             "n": "not",
             "a": "and",
@@ -405,6 +406,9 @@ RHLab.Widgets.Breadboard = function() {
         if(code1[0] == this.literalCodeType || code2[0] == this.literalCodeType){
             return false;
         }
+        if(code1[0] == this.switchCodeType || code2[0] == this.switchCodeType){
+            return false;
+        }
         return true;
     }
 
@@ -416,6 +420,9 @@ RHLab.Widgets.Breadboard = function() {
             return [code, pointPinNum];
         }
         if(code[0] == this.literalCodeType){
+            return [code, pointPinNum];
+        }
+        if(code[0] == this.switchCodeType){
             return [code, pointPinNum];
         }
         if(code[0] in this.gateTypes){
@@ -865,6 +872,24 @@ RHLab.Widgets.Breadboard = function() {
                     point1Code = "g" + gpioPin.toString();
                 }
             }
+            // check if connected to a switch
+            $.each(this._outputs, function(pos, eachSwitch){
+                var wireX = eachSwitch.GetWireX();
+                var wireYBase = eachSwitch.GetWireYBase();
+                if(point1.y >= wireYBase && point1.y <= (wireYBase + 4*VISIR_SQUARE_SIZE)){
+                    if(point1.x === wireX){
+                        // switch found
+                        point1IsOutput = true;
+                        if(eachSwitch._value){
+                            point1Code = "ST";
+                        }
+                        else{
+                            point1Code = "SF";
+                        }
+                        return false;
+                    }
+                }
+            });
             var notPinOutput = [false, -1]; // if in gate, gate num
             componentCounterLocal = 0;
             $.each(_notGate, function(pos, gate){
@@ -994,6 +1019,24 @@ RHLab.Widgets.Breadboard = function() {
                 point2IsOutput = true;
                 point2Code = "g" + gpioPin.toString();
             }
+            // check if connected to a switch
+            $.each(this._outputs, function(pos, eachSwitch){
+                var wireX = eachSwitch.GetWireX();
+                var wireYBase = eachSwitch.GetWireYBase();
+                if(point2.y >= wireYBase && point2.y <= (wireYBase + 4*VISIR_SQUARE_SIZE)){
+                    if(point2.x === wireX){
+                        // switch found
+                        point2IsOutput = true;
+                        if(eachSwitch._value){
+                            point2Code = "ST";
+                        }
+                        else{
+                            point2Code = "SF";
+                        }
+                        return false;
+                    }
+                }
+            });
             componentCounterLocal = 0;
             $.each(_notGate, function(pos, gate){
                 notPinOutput = gate.CheckIfOutput(point2);
@@ -1219,7 +1262,7 @@ RHLab.Widgets.Breadboard = function() {
                 return;
             }
 
-            // point1Code: g17, T, F, n
+            // point1Code: g17, T, F, n, ST
             // inputPointPinNum = gate number (only if point1Code is n)
             // outputPointPinNum = gate number (only if point1Code is n)
 
@@ -1304,6 +1347,8 @@ RHLab.Widgets.Breadboard = function() {
                 }
             });
         });
+
+        
         var wiringProtocolMessage = messages.join(";");
         wiringProtocolMessage = wiringProtocolMessage + "\n";
         return wiringProtocolMessage;
@@ -1387,6 +1432,7 @@ RHLab.Widgets.Breadboard = function() {
     // change the output state of the switch, triggered upon each user click
     Breadboard.Switch.prototype._Change = function () {
         this._value = !this._value;
+        this._valueChanged = true;
 
         // swap between the two different images
         var $inactiveElement = this._$elem.find('img:not(.active)');
