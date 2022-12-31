@@ -61,8 +61,8 @@ RHLab.Widgets.Breadboard = function() {
         28: 'V_SW20',
         29: 'V_SW21',
         30: 'V_SW22',
-        33: 'V_SW23',
-        34: 'V_SW24',
+        // 33: 'V_SW23',
+        // 34: 'V_SW24',
         35: 'V_SW25',
         36: 'V_SW26',
         37: 'V_SW27',
@@ -82,6 +82,8 @@ RHLab.Widgets.Breadboard = function() {
     var INPUTS_BY_PIN = {
         31: 'V_LED0', // GPIO26
         32: 'V_LED1', // GPIO27
+        33: 'V_SW23',
+        34: 'V_SW24',
     };
 
     // Function called by template.html for flask that initalizes a <div> for the breadboard
@@ -1366,7 +1368,10 @@ RHLab.Widgets.Breadboard = function() {
         
         var wiringProtocolMessage = messages.join(";");
         if(nonGateLeftovers){
-            wiringProtocolMessage += ";" + nonGateLeftovers.join(";");
+            if(wiringProtocolMessage){
+                wiringProtocolMessage += ";";
+            }
+            wiringProtocolMessage += nonGateLeftovers.join(";");
         }
         wiringProtocolMessage = wiringProtocolMessage + "\n";
         return wiringProtocolMessage;
@@ -1538,13 +1543,18 @@ RHLab.Widgets.Breadboard = function() {
         return this._pin_location;
     }
 
+    // [true, 3, 1]
+    // this means: true, there is an input
+    //             the gate number
+    //             the input number for that particular gate
     Breadboard.OrGate.prototype.CheckIfInput = function(pin){
         // top half
         if(pin.y < this._topPosition && pin.y > 159){
             for(var i = 1; i < this._pin_location.length; i++){
                 if(pin.x === this._pin_location[i]){
                     if(i != 3 && i != 6){
-                        return [true, i < 3 ? 3 : 4, i < 3 ? i - 3 : i];
+                        // return [true, i < 3 ? 3 : 4, i < 3 ? i - 3 : i];
+                        return [true, i < 3 ? 3 : 4, i < 3 ? i : i - 3];
                     }
                 }
             }
@@ -1667,7 +1677,7 @@ RHLab.Widgets.Breadboard = function() {
             for(var i = 1; i < this._pin_location.length; i++){
                 if(pin.x === this._pin_location[i]){
                     if(i != 3 && i != 6){
-                        return [true, i < 3 ? 3 : 4, i < 3 ? i - 3 : i];
+                        return [true, i < 3 ? 3 : 4, i < 3 ? i : i - 3];
                     }
                 }
             }
