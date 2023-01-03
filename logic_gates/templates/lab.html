@@ -28,15 +28,15 @@
     </div>
     <div>
         <button onclick="printLog()" style="background-color: #4CAF50; border:none; color:white; padding:5px 10px; text-align:center; font-size:14px;">Submit</button>
-        <button onclick="addNotGate(this)" style="padding-left:10px;">Add NOT</button>
-        <button onclick="addAndGate(this)" style="padding-left:10px;">Add NOT</button>
-        <button onclick="addOrGate(this)" style="padding-left:10px;">Add OR</button>
+        <button onclick="addNotGate(this, 274, 261)" style="padding-left:10px;">Add NOT</button>
+        <button onclick="addAndGate(this, 365, 261)" style="padding-left:10px;">Add AND</button>
+        <button onclick="addOrGate(this, 456, 261)" style="padding-left:10px;">Add OR</button>
     </div>
     <div>
 	 <!-- <img src="{{ url_for('lab.video_feed') }}" width="500" height="400" style="padding-top: 10px;"> -->
 	</div>
     <div>
-        <img src="{{ url_for('static', filename='resources/images/pinout.png')}}" width=400px style="float:left;">
+        <img src="{{ url_for('static', filename='resources/images/de1_pinout.png')}}" width=400px style="float:left;">
         <img src="{{ url_for('static', filename='resources/images/logic_pinout.png') }}" width=200px style="float:left;">
     </div>
 
@@ -65,26 +65,26 @@
     </script>
     <script>
         // Add an NOT gate to the breadboard GUI, triggered when the "Add NOT Gate" button is pressed
-        function addNotGate(b){
-            var not0 = new RHLab.Widgets.Breadboard.NotGate("NG1", imageBase, 274, 261);
+        function addNotGate(b, xPos, yPos){
+            var not0 = new RHLab.Widgets.Breadboard.NotGate("NG1", imageBase, xPos, yPos); //274, 261
             breadboard._notGate.push(not0);
             breadboard.AddComponent(not0);
             breadboard.Update();
             b.disabled = true;
         }
         // Add an AND gate to the breadboard GUI, triggered when the "Add AND Gate" button is pressed
-        function addAndGate(b){
-            // var and0 = new RHLab.Widgets.Breadboard.AndGate("AG1", imageBase, 365, 261);
-            var and0 = new RHLab.Widgets.Breadboard.NotGate("AG1", imageBase, 365, 261);
-            // breadboard._andGate.push(and0);
-            breadboard._notGate.push(and0);
+        function addAndGate(b, xPos, yPos){
+            var and0 = new RHLab.Widgets.Breadboard.AndGate("AG1", imageBase, xPos, yPos);
+            // var and0 = new RHLab.Widgets.Breadboard.NotGate("AG1", imageBase, xPos, yPos); // 365, 261
+            breadboard._andGate.push(and0);
+            // breadboard._notGate.push(and0);
             breadboard.AddComponent(and0);
             breadboard.Update();
             b.disabled = true;
         }
         // Add an OR gate to the breadboard GUI, triggered when the "Add OR Gate" button is pressed
-        function addOrGate(b){
-            var or0 = new RHLab.Widgets.Breadboard.OrGate("OG1", imageBase, 456, 261);
+        function addOrGate(b, xPos, yPos){
+            var or0 = new RHLab.Widgets.Breadboard.OrGate("OG1", imageBase, xPos, yPos); // 456, 261
             breadboard._orGate.push(or0);
             breadboard.AddComponent(or0);
             breadboard.Update();

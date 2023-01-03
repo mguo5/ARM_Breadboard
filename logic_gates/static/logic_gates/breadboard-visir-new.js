@@ -36,13 +36,61 @@ RHLab.Widgets.Breadboard = function() {
     var DEFAULT_NUMBER_OF_SWITCHES = 18;
 
     // Associate which of the 50-pin GPIO will be outputs (inputs to the microcontroller)
+    // var OUTPUTS_BY_PIN = {
+    //     07: 'PC1',  // GPIO6 //PC1
+    //     08: 'V_SW2',  // GPIO7
+    //     09: 'V_SW3',  // GPIO8
+    //     10: 'V_SW4',  // GPIO9
+    //     11: 'PA1', //PA1
+    //     12: 'temp',
+    //     13: 'V_SW5',  // GPIO10
+    //     14: 'V_SW6',  // GPIO11
+    //     15: 'V_SW7',  // GPIO12
+    //     16: 'V_SW8',  // GPIO13
+    //     17: 'V_SW9',  // GPIO14
+    //     18: 'V_SW10', // GPIO15
+    //     19: 'V_SW11', // GPIO16
+    //     20: 'V_SW12', // GPIO17
+    //     21: 'PB1', // GPIO18  //PB1
+    //     22: 'V_SW14', // GPIO19
+    //     //23: 'V_SW15', // GND
+    //     24: 'V_SW16', // GPIO21
+    //     25: 'V_SW17', // GPIO22
+    //     26: 'V_SW18',
+    //     27: 'V_SW19',
+    //     28: 'V_SW20',
+    //     29: 'V_SW21',
+    //     30: 'V_SW22',
+    //     // 33: 'V_SW23',
+    //     // 34: 'V_SW24',
+    //     35: 'V_SW25',
+    //     36: 'V_SW26',
+    //     37: 'V_SW27',
+    //     38: 'V_SW28',
+    //     39: 'V_SW29',
+    //     40: 'V_SW30',
+    //     41: 'V_SW31',
+    //     42: 'V_SW32',
+    //     43: 'V_SW33',
+    //     44: 'PD12', //Green
+    //     45: 'PD13', //Orange
+    //     46: 'PD14', //Red
+    //     47: 'PD15' //Blue
+    // };
+
+    // Define the outputs from the 40-pin GPIO for the DE1-SoC
     var OUTPUTS_BY_PIN = {
-        07: 'PC1',  // GPIO6 //PC1
-        08: 'V_SW2',  // GPIO7
-        09: 'V_SW3',  // GPIO8
-        10: 'V_SW4',  // GPIO9
-        11: 'PA1', //PA1
-        12: 'temp',
+        31: 'V_LED0', // GPIO26
+        32: 'V_LED1', // GPIO27
+    };
+
+    // Define the inputs from the 40-pin GPIO for the DE1-SoC
+    var INPUTS_BY_PIN = {
+        06: 'V_SW1',  // GPIO6 //PC1
+        07: 'V_SW2',  // GPIO7
+        08: 'V_SW3',  // GPIO8
+        09: 'V_SW4',  // GPIO9
+        10: 'PA1', //PA1
         13: 'V_SW5',  // GPIO10
         14: 'V_SW6',  // GPIO11
         15: 'V_SW7',  // GPIO12
@@ -53,38 +101,18 @@ RHLab.Widgets.Breadboard = function() {
         20: 'V_SW12', // GPIO17
         21: 'PB1', // GPIO18  //PB1
         22: 'V_SW14', // GPIO19
-        //23: 'V_SW15', // GND
+        23: 'V_SW15', // GND
         24: 'V_SW16', // GPIO21
         25: 'V_SW17', // GPIO22
-        26: 'V_SW18',
-        27: 'V_SW19',
-        28: 'V_SW20',
-        29: 'V_SW21',
-        30: 'V_SW22',
-        // 33: 'V_SW23',
-        // 34: 'V_SW24',
-        35: 'V_SW25',
-        36: 'V_SW26',
-        37: 'V_SW27',
-        38: 'V_SW28',
-        39: 'V_SW29',
-        40: 'V_SW30',
-        41: 'V_SW31',
-        42: 'V_SW32',
-        43: 'V_SW33',
-        44: 'PD12', //Green
-        45: 'PD13', //Orange
-        46: 'PD14', //Red
-        47: 'PD15' //Blue
     };
 
-    // Associate which of the microcontroller will be inputs to the breadboard (output from the GPIO)
-    var INPUTS_BY_PIN = {
-        31: 'V_LED0', // GPIO26
-        32: 'V_LED1', // GPIO27
-        33: 'V_SW23',
-        34: 'V_SW24',
-    };
+    // // Associate which of the microcontroller will be inputs to the breadboard (output from the GPIO)
+    // var INPUTS_BY_PIN = {
+    //     31: 'V_LED0', // GPIO26
+    //     32: 'V_LED1', // GPIO27
+    //     33: 'V_SW23',
+    //     34: 'V_SW24',
+    // };
 
     // Function called by template.html for flask that initalizes a <div> for the breadboard
     function Breadboard($element, endpointBase, numberOfSwitches, imageBase, enableNetwork) {
@@ -280,7 +308,8 @@ RHLab.Widgets.Breadboard = function() {
         }
 
         // The 50-pin connectior to the GPIO of the microcontroller should always be there. We can initialize it here
-        var jp1Image = this._imageBase + "connections_50.png";
+        // var jp1Image = this._imageBase + "connections_50.png";
+        var jp1Image = this._imageBase + "connections_40.png";
         var jp1 = new Breadboard.Component('JP1', 221, 22, jp1Image, null, 0);
         this.AddComponent(jp1);
     }
@@ -761,18 +790,27 @@ RHLab.Widgets.Breadboard = function() {
         var _notGate = this._notGate;
         componentStatus.notStatus = [];
         for(var i = 0; i < _notGate.length; i++){
+            if(_notGate[i]._topPosition != 261){
+                errors.push("[!] Error");
+            }
             var notStatus = new Breadboard.NotStatus();
             componentStatus.notStatus.push(notStatus);
         }
         var _andGate = this._andGate;
         componentStatus.andStatus = [];
         for(var i = 0; i < _andGate.length; i++){
+            if(_andGate[i]._topPosition != 261){
+                errors.push("[!] Error");
+            }
             var andStatus = new Breadboard.AndStatus();
             componentStatus.andStatus.push(andStatus);
         }
         var _orGate = this._orGate;
         componentStatus.orStatus = [];
         for(var i = 0; i < _orGate.length; i++){
+            if(_orGate[i]._topPosition != 261){
+                errors.push("[!] Error");
+            }
             var orStatus = new Breadboard.OrStatus();
             componentStatus.orStatus.push(orStatus);
         }
@@ -1218,9 +1256,8 @@ RHLab.Widgets.Breadboard = function() {
             var point1InputNum;
             var point2InputNum;
             if(point1IsOutput == null || point2IsOutput == null){
-                errors.push("Error");
+                errors.push("[!] Error");
                 console.log("Both are null error");
-                return;
             }
 
             if(!point1IsOutput && point2IsOutput){
@@ -1256,16 +1293,19 @@ RHLab.Widgets.Breadboard = function() {
             }
             else if(!point1IsOutput && !point2IsOutput){
                 // both are inputs. For now, we will return error
-                errors.push("Error");
+                errors.push("[!] Error");
                 console.log("Both are inputs error");
-                return;
             }
             else{
                 // both are outputs. Also error
-                errors.push("Error");
+                errors.push("[!] Error");
                 console.log("Both are outputs error");
-                return;
             }
+
+            if(errors.length > 0){
+                return "Error in design";
+            }
+            // From this point on, we know that circuit is now within the valid state
 
             // point1Code: g17, T, F, n, ST
             // inputPointPinNum = gate number (only if point1Code is n)
@@ -1350,9 +1390,6 @@ RHLab.Widgets.Breadboard = function() {
 
         }
 
-        if(errors.length > 0){
-            return "ErrorHelloWorld";
-        }
         var messages = [];
         $.each(componentStatus, function(pos, particularComponentStatus){
             $.each(particularComponentStatus, function(pos, gate){
