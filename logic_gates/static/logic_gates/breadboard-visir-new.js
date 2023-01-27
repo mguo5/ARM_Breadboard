@@ -125,11 +125,12 @@ RHLab.Widgets.Breadboard = function() {
             // pinNumber: true/false
         };
         this._outputs = []; // Switches
-        this._inputs = []; // LEDs
+        this._leds = []; // LEDs
         this._notGate = []; // not gate
         this._andGate = []; //and gate
         this._orGate = []; //or gate
         this._errors = [];  //potential errors
+        this._changedSwitches = [];
         this._numberOfSwitches = numberOfSwitches || DEFAULT_NUMBER_OF_SWITCHES;
         this._imageBase = imageBase || (window.STATIC_ROOT + "resources/img/");
         this._enableNetwork = (enableNetwork === undefined)?true:enableNetwork;
@@ -420,6 +421,7 @@ RHLab.Widgets.Breadboard = function() {
         this.gpioCodeType = "g";
         this.literalCodeType = "L";      // May need to expand
         this.switchCodeType = "S";
+        this.ledCodeType = "d";
         this.gateTypes = {
             "n": "not",
             "a": "and",
@@ -440,6 +442,9 @@ RHLab.Widgets.Breadboard = function() {
         if(code1[0] == this.switchCodeType || code2[0] == this.switchCodeType){
             return false;
         }
+        if(code1[0] == this.ledCodeType || code1[0] == this.ledCodeType){
+            return false;
+        }
         return true;
     }
 
@@ -454,6 +459,9 @@ RHLab.Widgets.Breadboard = function() {
             return [code, pointPinNum];
         }
         if(code[0] == this.switchCodeType){
+            return [code, pointPinNum];
+        }
+        if(code[0] == this.ledCodeType){
             return [code, pointPinNum];
         }
         if(code[0] in this.gateTypes){
@@ -770,6 +778,7 @@ RHLab.Widgets.Breadboard = function() {
     Breadboard.prototype.Update = function() {
         // Initialize self variables used for checking throughout the update process
         console.log("Updating...");
+        // console.log(this);
         var myString = this.CalculateWiringProtocolMessage();
         // console.log(myString);
         return myString;
@@ -784,6 +793,7 @@ RHLab.Widgets.Breadboard = function() {
         
         var componentStatus = {};
         var errors = [];
+        var changedSwitches = [];
         var wires = this._breadboard._wires;
         var bufferCounter = 0;
 
@@ -816,6 +826,7 @@ RHLab.Widgets.Breadboard = function() {
         }
 
         var nonGateLeftovers = [];
+        var _leds = this._leds;
 
         // console.log(_notGate);
         console.log(componentStatus);
@@ -841,7 +852,14 @@ RHLab.Widgets.Breadboard = function() {
             var point1Code = "";
             if(isVirtualInput){
                 point1IsOutput = false;
-                point1Code = "g" + gpioPin.toString();
+                if(gpioPin < 10){
+                    // i.e. g07 or g09. Add a '0' string to have 2 numbers after g
+                    point1Code = "g" + "0" + gpioPin.toString();
+                }
+                else{
+                    // i.e. g17 or g31. Will always have 2 numbers after g
+                    point1Code = "g" + gpioPin.toString();
+                }
             }
             var notPinInput = [false, -1]; // if in gate, gate location
             componentCounterLocal = 0;
@@ -892,6 +910,32 @@ RHLab.Widgets.Breadboard = function() {
                 inputPoint1InputNum = orPinInput[2];
                 point1Code = "o";
             }
+            var ledCount = 0;
+            $.each(_leds, function(pos, led){
+                var wireX = led.GetWireX();
+                var wireY = led.GetWireYBase();
+                // check if led is on top half or bottom half
+                if(point1.x === wireX){
+                    if(led._onTopHalf){
+                        if((point1.y - wireY) <= 4*13){
+                            //success
+                            console.log("here");
+                            point1IsOutput = false;
+                            point1Code = "d" + ledCount.toString();
+                            return false;
+                        }
+                    }
+                    else{
+                        if((wireY - point1.x) <= 4*13){
+                            //success
+                            point1IsOutput = false;
+                            point1Code = "d" + ledCount.toString();
+                            return false;
+                        }
+                    }
+                }
+                ledCount++;
+            });
 
             // check output:
             // - check if output of switch, or Power or GND, or output of a logic gate, or output of GPIO
@@ -916,6 +960,7 @@ RHLab.Widgets.Breadboard = function() {
                 }
             }
             // check if connected to a switch
+            var i_p = 0;
             $.each(this._outputs, function(pos, eachSwitch){
                 var wireX = eachSwitch.GetWireX();
                 var wireYBase = eachSwitch.GetWireYBase();
@@ -925,13 +970,21 @@ RHLab.Widgets.Breadboard = function() {
                         point1IsOutput = true;
                         if(eachSwitch._value){
                             point1Code = "ST";
+                            // point1Code = "SW" + i_p.toString();
                         }
                         else{
                             point1Code = "SF";
+                            // point1Code = "SW" + i_p.toString();
+                        }
+
+                        if(eachSwitch._valueChanged){
+                            changedSwitches.push("SW"+i_p.toString());
+                            eachSwitch._valueChanged = false;
                         }
                         return false;
                     }
                 }
+                i_p++;
             });
             var notPinOutput = [false, -1]; // if in gate, gate num
             componentCounterLocal = 0;
@@ -1046,6 +1099,32 @@ RHLab.Widgets.Breadboard = function() {
                 inputPoint2InputNum = orPinInput[2];
                 point2Code = "o";
             }
+            ledCount = 0;
+            $.each(_leds, function(pos, led){
+                var wireX = led.GetWireX();
+                var wireY = led.GetWireYBase();
+                // check if led is on top half or bottom half
+                if(point2.x === wireX){
+                    if(led._onTopHalf){
+                        if((point2.y - wireY) <= 4*13){
+                            //success
+                            console.log("here");
+                            point2IsOutput = false;
+                            point2Code = "d" + ledCount.toString();
+                            return false;
+                        }
+                    }
+                    else{
+                        if((wireY - point2.x) <= 4*13){
+                            //success
+                            point2IsOutput = false;
+                            point2Code = "d" + ledCount.toString();
+                            return false;
+                        }
+                    }
+                }
+                ledCount++;
+            });
 
             // check output:
             // - check if output of switch, or Power or GND, or output of a logic gate, or output of GPIO
@@ -1060,9 +1139,17 @@ RHLab.Widgets.Breadboard = function() {
             isVirtualOutput = OUTPUTS_BY_PIN[gpioPin] !== undefined;
             if(isVirtualOutput){
                 point2IsOutput = true;
-                point2Code = "g" + gpioPin.toString();
+                if(gpioPin < 10){
+                    // i.e. g07 or g09. Add a '0' string to have 2 numbers after g
+                    point2Code = "g" + "0" + gpioPin.toString();
+                }
+                else{
+                    // i.e. g17 or g31. Will always have 2 numbers after g
+                    point2Code = "g" + gpioPin.toString();
+                }
             }
             // check if connected to a switch
+            i_p = 0;
             $.each(this._outputs, function(pos, eachSwitch){
                 var wireX = eachSwitch.GetWireX();
                 var wireYBase = eachSwitch.GetWireYBase();
@@ -1072,9 +1159,16 @@ RHLab.Widgets.Breadboard = function() {
                         point2IsOutput = true;
                         if(eachSwitch._value){
                             point2Code = "ST";
+                            // point2Code = "SW" + i_p.toString();
                         }
                         else{
                             point2Code = "SF";
+                            // point2Code = "SW" + i_p.toString();
+                        }
+
+                        if(eachSwitch._valueChanged){
+                            changedSwitches.push("SW"+i_p.toString());
+                            eachSwitch._valueChanged = false;
                         }
                         return false;
                     }
@@ -1106,7 +1200,7 @@ RHLab.Widgets.Breadboard = function() {
             });
             if(andPinOutput[0]){
                 point2IsOutput = true;
-                outputPoint1GateNum = andPinOutput[1];
+                outputPoint2GateNum = andPinOutput[1];
                 point2Code = "a";
             }
             componentCounterLocal = 0;
@@ -1120,7 +1214,7 @@ RHLab.Widgets.Breadboard = function() {
             });
             if(orPinOutput[0]){
                 point2IsOutput = true;
-                outputPoint1GateNum = orPinOutput[1];
+                outputPoint2GateNum = orPinOutput[1];
                 point2Code = "o";
             }
 
@@ -1411,6 +1505,11 @@ RHLab.Widgets.Breadboard = function() {
             wiringProtocolMessage += nonGateLeftovers.join(";");
         }
         wiringProtocolMessage = wiringProtocolMessage + "\n";
+        // console.log(changedSwitches);
+        // if(changedSwitches.length){
+        //     wiringProtocolMessage += "\t\n" + changedSwitches.join(";");
+        //     wiringProtocolMessage += "\n";
+        // }
         return wiringProtocolMessage;
 
     }
@@ -1469,6 +1568,66 @@ RHLab.Widgets.Breadboard = function() {
         this._breadboard = breadboard;
     }
 
+    Breadboard.LEDs = function(identifier, imageBase, leftPosition, topPosition) {
+        var self = this;
+
+        var image1 = imageBase + "led-off.png";
+        var image2 = imageBase + "led-on.png";
+
+        Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1, image2);
+
+        this._value = false;
+        this._onTopHalf = false;
+        if(topPosition < 261){
+            this._onTopHalf = true;
+        }
+
+        // // Link appropriate css that makes the mouse become a pointer
+        // this._$elem.css({'cursor': 'pointer'});
+
+        // // this._value = false;
+        // this._$elem.find('img').click(function () {
+        //     self._Change();
+        // });
+    }
+
+    Breadboard.LEDs.prototype = Object.create(Breadboard.Component.prototype);
+
+    // change the output state of the switch, triggered upon each user click
+    Breadboard.LEDs.prototype._Change = function (toChange) {
+
+        if(this._value != toChange){
+            // swap between the two different images
+            var $inactiveElement = this._$elem.find('img:not(.active)');
+            var $activeElement = this._$elem.find('img.active');
+
+            // set the other one as inactive
+            $inactiveElement.addClass('active');
+            $activeElement.removeClass('active');
+
+            // Make sure that the breadboard recognizes this change by updating the breadboard state
+            if (this._breadboard !== null) {
+                this._breadboard.Update();
+            }
+        }
+
+        this._value = toChange;
+        
+    };
+
+    // The getter function that obtains the x value coordinates of where the wire should be
+    Breadboard.LEDs.prototype.GetWireX = function () {
+        return this._leftPosition + 5;
+    }
+
+    // The getter function that obtains the y value coordinates of where the wire should be
+    Breadboard.LEDs.prototype.GetWireYBase = function () {
+        if (this._onTopHalf) 
+            return this._topPosition + 4*13;
+        else
+            return this._topPosition;
+    }
+
     // The switch objects in the breadboard
     Breadboard.Switch = function (identifier, imageBase, leftPosition, topPosition) {
         var self = this;
@@ -1488,6 +1647,7 @@ RHLab.Widgets.Breadboard = function() {
     };
 
     Breadboard.Switch.prototype = Object.create(Breadboard.Component.prototype);
+
 
     // change the output state of the switch, triggered upon each user click
     Breadboard.Switch.prototype._Change = function () {

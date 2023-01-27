@@ -10,6 +10,7 @@
 
  function printLog(){
     var myString = breadboard.Update()
+    // var myString = breadboard.CalculateWiringProtocolMessage();
     // console.log(breadboard);
     // console.log(breadboard._outputState);
     // console.log(breadboard._errors);
