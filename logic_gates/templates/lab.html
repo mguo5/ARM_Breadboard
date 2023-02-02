@@ -61,6 +61,7 @@
         var endpointBase = "{{ url_for('api.index') }}";
         var imageBase = "{{ url_for('static', filename='resources/images/') }}";
         var numberOfSwitches = 3;
+        visir.Config.Set("libraryXml", "{{ url_for('static', filename='logic_gates/library.xml') }}");
         var breadboard = new RHLab.Widgets.Breadboard($("#breadboard"), endpointBase, numberOfSwitches, imageBase, false);
         var led0 = new RHLab.Widgets.Breadboard.LEDs("LED1", imageBase, 185, 157);
         var led1 = new RHLab.Widgets.Breadboard.LEDs("LED2", imageBase, 211, 157);
