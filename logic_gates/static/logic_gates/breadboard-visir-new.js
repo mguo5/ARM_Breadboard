@@ -152,11 +152,78 @@ RHLab.Widgets.Breadboard = function() {
 
         // Not clean: override _ReadLibrary to return always a fixed list without
         // making queries to the server
-        visir.Breadboard.prototype._ReadLibrary = function () {
-            this._$library = $("<components></components>");
-            if (this._onLibraryLoaded) 
-                me._onLibraryLoaded();
-        }
+        // visir.Breadboard.prototype._ReadLibrary = function () {
+        //     // this._$library = $("<components></components>");
+        //     this._$library = $(`    
+        //     <components>
+        //         <component type="Gate" value="NOT" pins="8">
+        //             <rotations>
+        //                 <rotation ox="-18" oy ="-14" image="not_gate.png" rot="0">
+        //                     <pins>
+        //                         <pin x="-13" y="26" />
+        //                         <pin x="0" y="26" />
+        //                         <pin x="13" y="26" />
+        //                         <pin x="26" y="26" />
+        //                         <pin x="26" y="-13" />
+        //                         <pin x="13" y="-13" />
+        //                         <pin x="0" y="-13" />
+        //                         <pin x="-13" y="-13" />
+        //                     </pins>
+        //                 </rotation>
+        //             </rotations>
+        //         </component>
+        //         <component type="Gate" value="AND" pins="8">
+        //             <rotations>
+        //                 <rotation ox="-18" oy ="-14" image="and_gate.png" rot="0">
+        //                     <pins>
+        //                         <pin x="-13" y="26" />
+        //                         <pin x="0" y="26" />
+        //                         <pin x="13" y="26" />
+        //                         <pin x="26" y="26" />
+        //                         <pin x="26" y="-13" />
+        //                         <pin x="13" y="-13" />
+        //                         <pin x="0" y="-13" />
+        //                         <pin x="-13" y="-13" />
+        //                     </pins>
+        //                 </rotation>
+        //             </rotations>
+        //         </component>
+        //         <component type="Gate" value="OR" pins="8">
+        //             <rotations>
+        //                 <rotation ox="-18" oy ="-14" image="or_gate.png" rot="0">
+        //                     <pins>
+        //                         <pin x="-13" y="26" />
+        //                         <pin x="0" y="26" />
+        //                         <pin x="13" y="26" />
+        //                         <pin x="26" y="26" />
+        //                         <pin x="26" y="-13" />
+        //                         <pin x="13" y="-13" />
+        //                         <pin x="0" y="-13" />
+        //                         <pin x="-13" y="-13" />
+        //                     </pins>
+        //                 </rotation>
+        //             </rotations>
+        //         </component>
+        //         <component type="LED" value="" pins="2">
+        //             <rotations>
+        //                 <rotation ox="-27" oy ="-7" image="led-off.png" rot="0">
+        //                     <pins><pin x="-26" y="0" /><pin x="26"  y="0" /></pins>
+        //                 </rotation>
+        //             </rotations>
+        //         </component>
+        //         <component type="Switch" value="" pins="2">
+        //             <rotations>
+        //                 <rotation ox="-8" oy ="-27" image="switch-left-small.jpg" rot="0">
+        //                     <pins><pin x="0" y="-26" /><pin x="0"  y="26" /></pins>
+        //                 </rotation>
+        //             </rotations>
+        //         </component>
+        //     </components>
+        //     `);
+        //     // this._$library = $();
+        //     if (this._onLibraryLoaded) 
+        //         this._onLibraryLoaded();
+        // }
         this._breadboard = new visir.Breadboard(1, $element);
 
         // Don't need the visir functionality for: Instruments, Power Supplies
@@ -170,6 +237,35 @@ RHLab.Widgets.Breadboard = function() {
         $(document).on("mouseup.rem touchend.rem mouseup", function(e) {
             self.Update();
         });
+        this._$library = this._breadboard._$library;
+        // --------------------------------- testing ----------------------------------
+        // this._$elem.find(".teacher").click(function(e) {
+        //     if (!visir.Config.Get("readOnly"))
+        //     {
+        //         self._$elem.find(".componentbox").show();
+        //         self._$elem.find(".componentlist-table").empty();
+        //         var $components = self._$library.find("component").each(function() {
+        //             var img   = $(this).find("rotation").attr("image");
+        //             var type  = $(this).attr("type");
+        //             var value = $(this).attr("value");
+        //             var img_html = '<tr class="component-list-row">\
+        //             <td>\
+        //             <img src="' + self._imageBase + img + '"/>\
+        //             </td>\
+        //             <td>' + type + '</td>\
+        //             <td>' + value + '</td>\
+        //             </tr>';
+        //             self._$elem.find(".componentlist-table").append(img_html);
+    
+        //             $(self._$elem.find('.component-list-row').get(-1)).click(function(e){
+        //                 var comp_obj = self._breadboard.CreateComponent(type, value);
+        //                 comp_obj._PlaceInBin();
+        //             });
+        //         });
+        //     }
+        // });
+        // ------------------------------- end testing ------------------------------------
+
 
         this._breadboard.LoadCircuit(getOriginalWires(this._numberOfSwitches));
         this._originalNumberOfWires = this._breadboard._wires.length;
@@ -252,8 +348,8 @@ RHLab.Widgets.Breadboard = function() {
 
     // Visir contains a bunch of Instruments, which is unimportant here. We can hide these
     Breadboard.prototype._HideInstruments = function () {
-        this._$elem.find('.bin .teacher').hide();
-        this._$elem.find('.bin .reset').hide();
+        // this._$elem.find('.bin .teacher').hide();
+        // this._$elem.find('.bin .reset').hide();
         this._$elem.find('.instrument.dmm').hide();
         this._$elem.find('.instrument.osc').hide();
         this._$elem.find('.instrument.fgen').hide();
@@ -778,7 +874,7 @@ RHLab.Widgets.Breadboard = function() {
     Breadboard.prototype.Update = function() {
         // Initialize self variables used for checking throughout the update process
         console.log("Updating...");
-        // console.log(this);
+        console.log(this);
         var myString = this.CalculateWiringProtocolMessage();
         // console.log(myString);
         return myString;
