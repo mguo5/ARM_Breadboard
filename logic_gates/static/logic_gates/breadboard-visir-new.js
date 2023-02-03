@@ -153,73 +153,7 @@ RHLab.Widgets.Breadboard = function() {
         // Not clean: override _ReadLibrary to return always a fixed list without
         // making queries to the server
         // visir.Breadboard.prototype._ReadLibrary = function () {
-        //     // this._$library = $("<components></components>");
-        //     this._$library = $(`    
-        //     <components>
-        //         <component type="Gate" value="NOT" pins="8">
-        //             <rotations>
-        //                 <rotation ox="-18" oy ="-14" image="not_gate.png" rot="0">
-        //                     <pins>
-        //                         <pin x="-13" y="26" />
-        //                         <pin x="0" y="26" />
-        //                         <pin x="13" y="26" />
-        //                         <pin x="26" y="26" />
-        //                         <pin x="26" y="-13" />
-        //                         <pin x="13" y="-13" />
-        //                         <pin x="0" y="-13" />
-        //                         <pin x="-13" y="-13" />
-        //                     </pins>
-        //                 </rotation>
-        //             </rotations>
-        //         </component>
-        //         <component type="Gate" value="AND" pins="8">
-        //             <rotations>
-        //                 <rotation ox="-18" oy ="-14" image="and_gate.png" rot="0">
-        //                     <pins>
-        //                         <pin x="-13" y="26" />
-        //                         <pin x="0" y="26" />
-        //                         <pin x="13" y="26" />
-        //                         <pin x="26" y="26" />
-        //                         <pin x="26" y="-13" />
-        //                         <pin x="13" y="-13" />
-        //                         <pin x="0" y="-13" />
-        //                         <pin x="-13" y="-13" />
-        //                     </pins>
-        //                 </rotation>
-        //             </rotations>
-        //         </component>
-        //         <component type="Gate" value="OR" pins="8">
-        //             <rotations>
-        //                 <rotation ox="-18" oy ="-14" image="or_gate.png" rot="0">
-        //                     <pins>
-        //                         <pin x="-13" y="26" />
-        //                         <pin x="0" y="26" />
-        //                         <pin x="13" y="26" />
-        //                         <pin x="26" y="26" />
-        //                         <pin x="26" y="-13" />
-        //                         <pin x="13" y="-13" />
-        //                         <pin x="0" y="-13" />
-        //                         <pin x="-13" y="-13" />
-        //                     </pins>
-        //                 </rotation>
-        //             </rotations>
-        //         </component>
-        //         <component type="LED" value="" pins="2">
-        //             <rotations>
-        //                 <rotation ox="-27" oy ="-7" image="led-off.png" rot="0">
-        //                     <pins><pin x="-26" y="0" /><pin x="26"  y="0" /></pins>
-        //                 </rotation>
-        //             </rotations>
-        //         </component>
-        //         <component type="Switch" value="" pins="2">
-        //             <rotations>
-        //                 <rotation ox="-8" oy ="-27" image="switch-left-small.jpg" rot="0">
-        //                     <pins><pin x="0" y="-26" /><pin x="0"  y="26" /></pins>
-        //                 </rotation>
-        //             </rotations>
-        //         </component>
-        //     </components>
-        //     `);
+        //     this._$library = $("<components></components>");
         //     // this._$library = $();
         //     if (this._onLibraryLoaded) 
         //         this._onLibraryLoaded();
@@ -237,34 +171,54 @@ RHLab.Widgets.Breadboard = function() {
         $(document).on("mouseup.rem touchend.rem mouseup", function(e) {
             self.Update();
         });
-        this._$library = this._breadboard._$library;
-        // --------------------------------- testing ----------------------------------
-        // this._$elem.find(".teacher").click(function(e) {
-        //     if (!visir.Config.Get("readOnly"))
-        //     {
-        //         self._$elem.find(".componentbox").show();
-        //         self._$elem.find(".componentlist-table").empty();
-        //         var $components = self._$library.find("component").each(function() {
-        //             var img   = $(this).find("rotation").attr("image");
-        //             var type  = $(this).attr("type");
-        //             var value = $(this).attr("value");
-        //             var img_html = '<tr class="component-list-row">\
-        //             <td>\
-        //             <img src="' + self._imageBase + img + '"/>\
-        //             </td>\
-        //             <td>' + type + '</td>\
-        //             <td>' + value + '</td>\
-        //             </tr>';
-        //             self._$elem.find(".componentlist-table").append(img_html);
-    
-        //             $(self._$elem.find('.component-list-row').get(-1)).click(function(e){
-        //                 var comp_obj = self._breadboard.CreateComponent(type, value);
-        //                 comp_obj._PlaceInBin();
-        //             });
-        //         });
-        //     }
-        // });
-        // ------------------------------- end testing ------------------------------------
+
+        $element.find(".teacher").off("click");
+
+        $element.find(".teacher").click(function(e) {
+            var me = self._breadboard;
+            $element.find(".componentbox").show();
+            $element.find(".componentlist-table").empty();
+            var $components = me._$library.find("component").each(function() {
+                var img   = $(this).find("rotation").attr("image");
+                var type  = $(this).attr("type");
+                var value = $(this).attr("value");
+                var img_html = '<tr class="component-list-row">\
+                <td>\
+                <img src="' + me._BuildImageUrl(img) + '"/>\
+                </td>\
+                <td>' + type + '</td>\
+                <td>' + value + '</td>\
+                </tr>';
+                $element.find(".componentlist-table").append(img_html);
+
+                $($element.find('.component-list-row').get(-1)).click(function(e){
+                    var comp_obj = me.CreateComponent(type, value);
+                    var xPos = comp_obj.GetPos().x;
+                    var yPos = comp_obj.GetPos().y;
+                    if(comp_obj._type == "Gate"){
+                        if(comp_obj._value == "NOT"){
+                            var not0 = new RHLab.Widgets.Breadboard.NotGate("NG1", imageBase, xPos, yPos, comp_obj); //274, 261
+                            self._notGate.push(not0);
+                            self.AddComponent(not0);
+                        }
+                        else if(comp_obj._value == "AND"){
+                            var and0 = new RHLab.Widgets.Breadboard.AndGate("AG1", imageBase, xPos, yPos, comp_obj);
+                            breadboard._andGate.push(and0);
+                            breadboard.AddComponent(and0);
+                        }
+                        else if(comp_obj._value == "OR"){
+                            var or0 = new RHLab.Widgets.Breadboard.OrGate("OG1", imageBase, xPos, yPos, comp_obj); // 456, 261
+                            breadboard._orGate.push(or0);
+                            breadboard.AddComponent(or0);
+                        }
+                    }
+                    // setInterval(function () {
+                    //     console.log(comp_obj);
+                    // }, 1000);
+                    comp_obj._PlaceInBin();
+                });
+            });
+        });
 
 
         this._breadboard.LoadCircuit(getOriginalWires(this._numberOfSwitches));
@@ -926,7 +880,8 @@ RHLab.Widgets.Breadboard = function() {
 
         // console.log(_notGate);
         console.log(componentStatus);
-        for (var i = this._originalNumberOfWires; i < wires.length; i++) {
+        // for (var i = this._originalNumberOfWires; i < wires.length; i++) {
+        for (var i = 22; i < wires.length; i++) {
             var componentCounterNot1 = 0;
             var componentCounterAnd1 = 0;
             var componentCounterOr1 = 0;
@@ -1783,12 +1738,17 @@ RHLab.Widgets.Breadboard = function() {
     }
     
     // The or gate functionality of the breadboard
-    Breadboard.OrGate = function(identifier, imageBase, leftPosition, topPosition){
+    Breadboard.OrGate = function(identifier, imageBase, leftPosition, topPosition, objVisir){
         var self = this;
 
         // Obtain the or gate image from the static folder to be placed on the breadbaord
         var image1 = imageBase + "or_gate.png";
-        Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
+        // Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
+
+        this._leftPosition = leftPosition - 20;
+        this._topPosition = topPosition - 15;
+
+        this._objVisir = objVisir;
 
         // Array that stores each of the 7 pin locations of the logic gate
         this._pin_location = [
@@ -1831,8 +1791,25 @@ RHLab.Widgets.Breadboard = function() {
 
     Breadboard.OrGate.prototype = Object.create(Breadboard.Component.prototype);
 
+    Breadboard.OrGate.prototype.SetPinLocation = function(leftPosition, topPosition) {
+        leftPosition = leftPosition - 20;
+        topPosition = topPosition - 15;
+        this._pin_location = [
+            leftPosition + 7,
+            leftPosition + 20,
+            leftPosition + 33,
+            leftPosition + 46,
+            leftPosition + 59,
+            leftPosition + 72,
+            leftPosition + 85
+        ];
+        this._leftPosition = leftPosition;
+        this._topPosition = topPosition;
+    }
+
     // the getter function that obtains the pin location for each pin
     Breadboard.OrGate.prototype.GetPinLocation = function () {
+        this.SetPinLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
         return this._pin_location;
     }
 
@@ -1841,10 +1818,11 @@ RHLab.Widgets.Breadboard = function() {
     //             the gate number
     //             the input number for that particular gate
     Breadboard.OrGate.prototype.CheckIfInput = function(pin){
+        var pinLocation = this.GetPinLocation();
         // top half
         if(pin.y < this._topPosition && pin.y > 159){
-            for(var i = 1; i < this._pin_location.length; i++){
-                if(pin.x === this._pin_location[i]){
+            for(var i = 1; i < pinLocation.length; i++){
+                if(pin.x === pinLocation[i]){
                     if(i != 3 && i != 6){
                         // return [true, i < 3 ? 3 : 4, i < 3 ? i - 3 : i];
                         return [true, i < 3 ? 3 : 4, i < 3 ? i : i - 3];
@@ -1855,8 +1833,8 @@ RHLab.Widgets.Breadboard = function() {
         }
         // bottom half
         else if(pin.y >= this._topPosition && pin.y < 406) {
-            for(var i = 0; i < this._pin_location.length - 1; i++){
-                if(pin.x === this._pin_location[i]){
+            for(var i = 0; i < pinLocation.length - 1; i++){
+                if(pin.x === pinLocation[i]){
                     if(i != 2 && i != 5){
                         return [true, i < 2 ? 1 : 2, i < 2 ? i + 1 : i - 2];
                     }
@@ -1869,22 +1847,23 @@ RHLab.Widgets.Breadboard = function() {
     }
 
     Breadboard.OrGate.prototype.CheckIfOutput = function(pin){
+        var pinLocation = this.GetPinLocation();
         // top half
         if(pin.y < this._topPosition && pin.y > 159){
-            if(pin.x === this._pin_location[3]){
+            if(pin.x === pinLocation[3]){
                 return [true, 3];
             }
-            else if(pin.x === this._pin_location[6]){
+            else if(pin.x === pinLocation[6]){
                 return [true, 4]
             }
             return [false, -1];
         }
         // bottom half
         else if(pin.y >= this._topPosition && pin.y < 406) {
-            if(pin.x === this._pin_location[2]){
+            if(pin.x === pinLocation[2]){
                 return [true, 1];
             }
-            else if(pin.x === this._pin_location[5]){
+            else if(pin.x === pinLocation[5]){
                 return [true, 2];
             }
             return [false, -1];
@@ -1894,15 +1873,16 @@ RHLab.Widgets.Breadboard = function() {
     }
 
     Breadboard.OrGate.prototype.CheckIfPower = function(pin){
+        var pinLocation = this.GetPinLocation();
         // top half
         if(pin.y < this._topPosition && pin.y > 159){
-            if(pin.x === this._pin_location[0]){
+            if(pin.x === pinLocation[0]){
                 // This is a Vcc pin
                 return true;
             }
         }
         else if(pin.y >= this._topPosition && pin.y < 406){
-            if(pin.x === this._pin_location[6]){
+            if(pin.x === pinLocation[6]){
                 // This is a GND pin
                 return false;
             }
@@ -1911,12 +1891,17 @@ RHLab.Widgets.Breadboard = function() {
     }
     // ***********************************************************************************
     // The and gate functionality of the breadboard
-    Breadboard.AndGate = function(identifier, imageBase, leftPosition, topPosition) {
+    Breadboard.AndGate = function(identifier, imageBase, leftPosition, topPosition, objVisir) {
         var self = this;
 
         // Obtain the or gate image from the static folder to be placed on the breadbaord
         var image1 = imageBase + "and_gate.png";
-        Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
+        // Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
+
+        this._leftPosition = leftPosition - 20;
+        this._topPosition = topPosition - 15;
+
+        this._objVisir = objVisir;
         
         // Array that stores each of the 7 pin locations of the logic gate
         this._pin_location = [
@@ -1959,16 +1944,34 @@ RHLab.Widgets.Breadboard = function() {
 
     Breadboard.AndGate.prototype = Object.create(Breadboard.Component.prototype);
 
+    Breadboard.AndGate.prototype.SetPinLocation = function(leftPosition, topPosition) {
+        leftPosition = leftPosition - 20;
+        topPosition = topPosition - 15;
+        this._pin_location = [
+            leftPosition + 7,
+            leftPosition + 20,
+            leftPosition + 33,
+            leftPosition + 46,
+            leftPosition + 59,
+            leftPosition + 72,
+            leftPosition + 85
+        ];
+        this._leftPosition = leftPosition;
+        this._topPosition = topPosition;
+    }
+
     // the getter function that obtains the pin location for each pin
     Breadboard.AndGate.prototype.GetPinLocation = function () {
+        this.SetPinLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
         return this._pin_location;
     }
 
     Breadboard.AndGate.prototype.CheckIfInput = function(pin){
+        var pinLocation = this.GetPinLocation();
         // top half
         if(pin.y < this._topPosition && pin.y > 159){
-            for(var i = 1; i < this._pin_location.length; i++){
-                if(pin.x === this._pin_location[i]){
+            for(var i = 1; i < pinLocation.length; i++){
+                if(pin.x === pinLocation[i]){
                     if(i != 3 && i != 6){
                         return [true, i < 3 ? 3 : 4, i < 3 ? i : i - 3];
                     }
@@ -1978,8 +1981,8 @@ RHLab.Widgets.Breadboard = function() {
         }
         // bottom half
         else if(pin.y >= this._topPosition && pin.y < 406) {
-            for(var i = 0; i < this._pin_location.length - 1; i++){
-                if(pin.x === this._pin_location[i]){
+            for(var i = 0; i < pinLocation.length - 1; i++){
+                if(pin.x === pinLocation[i]){
                     if(i != 2 && i != 5){
                         return [true, i < 2 ? 1 : 2, i < 2 ? i + 1 : i - 2];
                     }
@@ -1992,22 +1995,23 @@ RHLab.Widgets.Breadboard = function() {
     }
 
     Breadboard.AndGate.prototype.CheckIfOutput = function(pin){
+        var pinLocation = this.GetPinLocation();
         // top half
         if(pin.y < this._topPosition && pin.y > 159){
-            if(pin.x === this._pin_location[3]){
+            if(pin.x === pinLocation[3]){
                 return [true, 3];
             }
-            else if(pin.x === this._pin_location[6]){
+            else if(pin.x === pinLocation[6]){
                 return [true, 4]
             }
             return [false, -1];
         }
         // bottom half
         else if(pin.y >= this._topPosition && pin.y < 406) {
-            if(pin.x === this._pin_location[2]){
+            if(pin.x === pinLocation[2]){
                 return [true, 1];
             }
-            else if(pin.x === this._pin_location[5]){
+            else if(pin.x === pinLocation[5]){
                 return [true, 2];
             }
             return [false, -1];
@@ -2017,15 +2021,16 @@ RHLab.Widgets.Breadboard = function() {
     }
 
     Breadboard.AndGate.prototype.CheckIfPower = function(pin){
+        var pinLocation = this.GetPinLocation();
         // top half
         if(pin.y < this._topPosition && pin.y > 159){
-            if(pin.x === this._pin_location[0]){
+            if(pin.x === pinLocation[0]){
                 // This is a Vcc pin
                 return true;
             }
         }
         else if(pin.y >= this._topPosition && pin.y < 406){
-            if(pin.x === this._pin_location[6]){
+            if(pin.x === pinLocation[6]){
                 // This is a GND pin
                 return false;
             }
@@ -2034,12 +2039,17 @@ RHLab.Widgets.Breadboard = function() {
     }
     // ***************************************************************************************************************************
     // The and gate functionality of the breadboard
-    Breadboard.NotGate = function(identifier, imageBase, leftPosition, topPosition) {
+    Breadboard.NotGate = function(identifier, imageBase, leftPosition, topPosition, objVisir) {
         var self = this;
         // Obtain the or gate image from the static folder to be placed on the breadbaord
         var image1 = imageBase + "not_gate.png";
 
-        Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
+        this._leftPosition = leftPosition - 20;
+        this._topPosition = topPosition - 15;
+
+        this._objVisir = objVisir;
+
+        // Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
         
         // Array that stores each of the 7 pin locations of the logic gate
         this._pin_location = [
@@ -2082,17 +2092,36 @@ RHLab.Widgets.Breadboard = function() {
 
     Breadboard.NotGate.prototype = Object.create(Breadboard.Component.prototype);
 
+    Breadboard.NotGate.prototype.SetPinLocation = function(leftPosition, topPosition) {
+        leftPosition = leftPosition - 20;
+        topPosition = topPosition - 15;
+        this._pin_location = [
+            leftPosition + 7,
+            leftPosition + 20,
+            leftPosition + 33,
+            leftPosition + 46,
+            leftPosition + 59,
+            leftPosition + 72,
+            leftPosition + 85
+        ];
+        this._leftPosition = leftPosition;
+        this._topPosition = topPosition;
+    }
+    
     // the getter function that obtains the pin location for each pin
     Breadboard.NotGate.prototype.GetPinLocation = function () {
+        // console.log(this.GetPos().x);
+        this.SetPinLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
         return this._pin_location;
     }
 
     Breadboard.NotGate.prototype.CheckIfInput = function(pin){
         // top half
+        var pinLocation = this.GetPinLocation();
         if(pin.y < this._topPosition && pin.y > 159){
             // 9, 11, 13
-            for(var i = 1; i < this._pin_location.length; i++){
-                if(pin.x === this._pin_location[i] && (i % 2 != 0)){
+            for(var i = 1; i < pinLocation.length; i++){
+                if(pin.x === pinLocation[i] && (i % 2 != 0)){
                     return [true, Math.floor((i+7)/2)-1];
                 }
             }
@@ -2101,8 +2130,8 @@ RHLab.Widgets.Breadboard = function() {
         // bottom half
         else if(pin.y >= this._topPosition && pin.y < 406) {
             // 0, 2, 4
-            for(var i = 0; i < this._pin_location.length - 1; i++){
-                if(pin.x === this._pin_location[i] && (i % 2 == 0)){
+            for(var i = 0; i < pinLocation.length - 1; i++){
+                if(pin.x === pinLocation[i] && (i % 2 == 0)){
                     return [true, i/2];
                 }
             }
@@ -2112,11 +2141,12 @@ RHLab.Widgets.Breadboard = function() {
     }
 
     Breadboard.NotGate.prototype.CheckIfOutput = function(pin){
+        var pinLocation = this.GetPinLocation();
         // top half
         if(pin.y < this._topPosition && pin.y > 159){
             // 8, 10, 12
-            for(var i = 1; i < this._pin_location.length; i++){
-                if(pin.x === this._pin_location[i] && (i % 2 == 0)){
+            for(var i = 1; i < pinLocation.length; i++){
+                if(pin.x === pinLocation[i] && (i % 2 == 0)){
                     return [true, Math.floor((i+7)/2)];
                 }
             }
@@ -2124,9 +2154,9 @@ RHLab.Widgets.Breadboard = function() {
         }
         // bottom half
         else if(pin.y >= this._topPosition && pin.y < 406) {
-            for(var i = 0; i < this._pin_location.length - 1; i++){
+            for(var i = 0; i < pinLocation.length - 1; i++){
                 // 1, 3, 5
-                if(pin.x === this._pin_location[i] && (i % 2 != 0)){
+                if(pin.x === pinLocation[i] && (i % 2 != 0)){
                     return [true, Math.floor(i/2)+1];
                 }
             }
@@ -2136,15 +2166,16 @@ RHLab.Widgets.Breadboard = function() {
     }
 
     Breadboard.NotGate.prototype.CheckIfPower = function(pin){
+        var pinLocation = this.GetPinLocation();
         // top half
         if(pin.y < this._topPosition && pin.y > 159){
-            if(pin.x === this._pin_location[0]){
+            if(pin.x === pinLocation[0]){
                 // This is a Vcc pin
                 return true;
             }
         }
         else if(pin.y >= this._topPosition && pin.y < 406){
-            if(pin.x === this._pin_location[6]){
+            if(pin.x === pinLocation[6]){
                 // This is a GND pin
                 return false;
             }
