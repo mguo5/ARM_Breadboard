@@ -165,9 +165,46 @@ RHLab.Widgets.Breadboard = function() {
         this._AddPowerSupplies();
         this._AddComponents();
         // Create a Delete button to delete wires
-        this._$elem.find('.delete').click(function () {
+
+        $element.find(".delete").off("click");
+        // override the delete button click to remove component rather than place in bin
+        $element.find('.delete').click(function () {
+            if (!visir.Config.Get("readOnly"))
+            {
+                if (self._breadboard._selectedWire !== null) {
+                    self._breadboard._RemoveWire(self._breadboard._wires[self._breadboard._selectedWire]);
+                    self._breadboard.SelectWire(null);
+                }
+                if (self._breadboard._selectedCompnent) {
+                    // self._breadboard._selectedCompnent._PlaceInBin();
+                    $.each(self._notGate, function(position, gate){
+                        if(gate._objVisir._$elem){
+                            self._notGate.splice(position, 1);
+                            return false;
+                        }
+                    });
+                    $.each(self._andGate, function(position, gate){
+                        if(gate._objVisir._$elem){
+                            self._andGate.splice(position, 1);
+                            return false;
+                        }
+                    });
+                    $.each(self._orGate, function(position, gate){
+                        if(gate._objVisir._$elem){
+                            self._orGate.splice(position, 1);
+                            return false;
+                        }
+                    });
+                    self._breadboard._selectedCompnent.remove();
+                    self._breadboard.SelectComponent(null);
+                }
+            }
+            console.log("I hit the trash can");
             self.Update();
         });
+        // this._$elem.find('.delete').click(function () {
+        //     self.Update();
+        // });
         $(document).on("mouseup.rem touchend.rem mouseup", function(e) {
             self.Update();
         });
