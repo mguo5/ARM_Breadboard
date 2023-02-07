@@ -63,12 +63,12 @@
         var numberOfSwitches = 3;
         visir.Config.Set("libraryXml", "{{ url_for('static', filename='logic_gates/library.xml') }}");
         var breadboard = new RHLab.Widgets.Breadboard($("#breadboard"), endpointBase, numberOfSwitches, imageBase, false);
-        var led0 = new RHLab.Widgets.Breadboard.LEDs("LED1", imageBase, 185, 157);
-        var led1 = new RHLab.Widgets.Breadboard.LEDs("LED2", imageBase, 211, 157);
-        breadboard.AddComponent(led0);
-        breadboard.AddComponent(led1);
-        breadboard._leds.push(led0);
-        breadboard._leds.push(led1);
+        // var led0 = new RHLab.Widgets.Breadboard.LEDs("LED1", imageBase, 185, 157);
+        // var led1 = new RHLab.Widgets.Breadboard.LEDs("LED2", imageBase, 211, 157);
+        // breadboard.AddComponent(led0);
+        // breadboard.AddComponent(led1);
+        // breadboard._leds.push(led0);
+        // breadboard._leds.push(led1);
     </script>
     <script>
         // Add an NOT gate to the breadboard GUI, triggered when the "Add NOT Gate" button is pressed

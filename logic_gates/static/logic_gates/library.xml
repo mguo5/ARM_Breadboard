@@ -67,8 +67,8 @@
 	</component>
 	<component type="LED" value="" pins="2">
 		<rotations>
-			<rotation ox="-27" oy ="-7" image="butterfly-led-off.jpg" rot="0">
-				<pins><pin x="-26" y="0" /><pin x="26"  y="0" /></pins>
+			<rotation ox="-6" oy ="-26" image="butterfly-led-off.png" rot="0">
+				<pins><pin x="0" y="0" /><pin x="0"  y="26" /></pins>
 			</rotation>
 		</rotations>
 	</component>

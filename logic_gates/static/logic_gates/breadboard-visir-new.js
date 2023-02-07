@@ -1,8 +1,7 @@
 /****************************************************
  * Author: Matt Guo
- * Course: EE475/EE542
  * Name: breadboard-visir.js
- * Affiliation: University of Washington
+ * Affiliation: Remote Hub Lab
  * Functionality: The javascript backend for the Flask breadboard GUI,
  * handling the client functionality. Breadboard components contain:
  * switches, not gate, and gate, and or gates. Breadboard.Update() contains
@@ -125,6 +124,7 @@ RHLab.Widgets.Breadboard = function() {
             // pinNumber: true/false
         };
         this._outputs = []; // Switches
+        this._experiment = [];
         this._leds = []; // LEDs
         this._notGate = []; // not gate
         this._andGate = []; //and gate
@@ -166,6 +166,41 @@ RHLab.Widgets.Breadboard = function() {
         this._AddComponents();
         // Create a Delete button to delete wires
 
+        $element.find(".reset").off("click");
+        $element.find(".reset").click( function(e) {
+            var me = self._breadboard;
+			if (!visir.Config.Get("readOnly"))
+			{
+				// // Send all the components back to the bin
+				// for(var i=0;i<me._components.length;i++) {
+				// 	me._components[i].Move(500,500); // move away from the bin
+				// }
+				for(var i=0;i<me._components.length;i++) {
+					me._components[i].remove();
+				}
+                // var numWiresToDelete = me._wires.length - 22;
+                // for (var i = 0; i < numWiresToDelete; i++) {
+                //     me._wires.pop();
+                // }
+                // console.log(me._wires.length);
+
+				me.SelectWire(null);
+				me.SelectComponent(null);
+				// me._wires = [];
+				// me._DrawWires();
+                self._breadboard.Clear();
+
+                self._breadboard.LoadCircuit(getOriginalWires(self._numberOfSwitches));
+                self._originalNumberOfWires = self._breadboard._wires.length;
+                console.log(me._wires.length);
+
+                self._notGate = [];
+                self._andGate = [];
+                self._orGate = [];
+                self._leds = [];
+			}
+		});
+
         $element.find(".delete").off("click");
         // override the delete button click to remove component rather than place in bin
         $element.find('.delete').click(function () {
@@ -178,28 +213,36 @@ RHLab.Widgets.Breadboard = function() {
                 if (self._breadboard._selectedCompnent) {
                     // self._breadboard._selectedCompnent._PlaceInBin();
                     $.each(self._notGate, function(position, gate){
-                        if(gate._objVisir._$elem){
+                        if(gate._objVisir._$circle){
                             self._notGate.splice(position, 1);
                             return false;
                         }
                     });
                     $.each(self._andGate, function(position, gate){
-                        if(gate._objVisir._$elem){
+                        if(gate._objVisir._$circle){
                             self._andGate.splice(position, 1);
                             return false;
                         }
                     });
                     $.each(self._orGate, function(position, gate){
-                        if(gate._objVisir._$elem){
+                        if(gate._objVisir._$circle){
                             self._orGate.splice(position, 1);
                             return false;
                         }
                     });
+                    $.each(self._leds, function(position, led){
+                        if(led._objVisir._$circle){
+                            self._leds.splice(position, 1);
+                            return false;
+                        }
+                    })
                     self._breadboard._selectedCompnent.remove();
                     self._breadboard.SelectComponent(null);
                 }
             }
             console.log("I hit the trash can");
+            // example of changing img
+            // self._experiment[0]._$elem.find("img").attr("src", "/static/visir/instruments/breadboard/images/butterfly-led-on.png");
             self.Update();
         });
         // this._$elem.find('.delete').click(function () {
@@ -249,8 +292,14 @@ RHLab.Widgets.Breadboard = function() {
                             breadboard.AddComponent(or0);
                         }
                     }
+                    else if(comp_obj._type == "LED"){
+                        var led0 = new RHLab.Widgets.Breadboard.LEDs("LED1", imageBase, xPos, yPos, comp_obj);
+                        breadboard._leds.push(led0);
+                        breadboard.AddComponent(led0);
+                        // breadboard._experiment.push(comp_obj);
+                    }
                     // setInterval(function () {
-                    //     console.log(comp_obj);
+                    //     console.log(comp_obj.GetPos());
                     // }, 1000);
                     comp_obj._PlaceInBin();
                 });
@@ -882,6 +931,7 @@ RHLab.Widgets.Breadboard = function() {
         var errors = [];
         var changedSwitches = [];
         var wires = this._breadboard._wires;
+        console.log(this._breadboard._wires.length);
         var bufferCounter = 0;
 
         var _notGate = this._notGate;
@@ -1007,7 +1057,6 @@ RHLab.Widgets.Breadboard = function() {
                     if(led._onTopHalf){
                         if((point1.y - wireY) <= 4*13){
                             //success
-                            console.log("here");
                             point1IsOutput = false;
                             point1Code = "d" + ledCount.toString();
                             return false;
@@ -1196,7 +1245,6 @@ RHLab.Widgets.Breadboard = function() {
                     if(led._onTopHalf){
                         if((point2.y - wireY) <= 4*13){
                             //success
-                            console.log("here");
                             point2IsOutput = false;
                             point2Code = "d" + ledCount.toString();
                             return false;
@@ -1656,13 +1704,17 @@ RHLab.Widgets.Breadboard = function() {
         this._breadboard = breadboard;
     }
 
-    Breadboard.LEDs = function(identifier, imageBase, leftPosition, topPosition) {
+    Breadboard.LEDs = function(identifier, imageBase, leftPosition, topPosition, visirObj) {
         var self = this;
 
         var image1 = imageBase + "led-off.png";
         var image2 = imageBase + "led-on.png";
-
-        Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1, image2);
+        
+        this._objVisir = visirObj;
+        console.log(this._objVisir);
+        this._leftPosition = leftPosition;
+        this._topPosition = topPosition;
+        // Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1, image2);
 
         this._value = false;
         this._onTopHalf = false;
@@ -1673,7 +1725,7 @@ RHLab.Widgets.Breadboard = function() {
         // // Link appropriate css that makes the mouse become a pointer
         // this._$elem.css({'cursor': 'pointer'});
 
-        // // this._value = false;
+        this._value = false;
         // this._$elem.find('img').click(function () {
         //     self._Change();
         // });
@@ -1682,34 +1734,59 @@ RHLab.Widgets.Breadboard = function() {
     Breadboard.LEDs.prototype = Object.create(Breadboard.Component.prototype);
 
     // change the output state of the switch, triggered upon each user click
-    Breadboard.LEDs.prototype._Change = function (toChange) {
+    Breadboard.LEDs.prototype._Change = function (ledValue) {
 
-        if(this._value != toChange){
+        if(ledValue){
             // swap between the two different images
-            var $inactiveElement = this._$elem.find('img:not(.active)');
-            var $activeElement = this._$elem.find('img.active');
+            // var $inactiveElement = this._$elem.find('img:not(.active)');
+            // var $activeElement = this._$elem.find('img.active');
+
+            this._objVisir._$elem.find("img").attr("src", "/static/visir/instruments/breadboard/images/butterfly-led-on.png");
 
             // set the other one as inactive
-            $inactiveElement.addClass('active');
-            $activeElement.removeClass('active');
+            // $inactiveElement.addClass('active');
+            // $activeElement.removeClass('active');
 
             // Make sure that the breadboard recognizes this change by updating the breadboard state
             if (this._breadboard !== null) {
                 this._breadboard.Update();
             }
         }
+        else {
+            this._objVisir._$elem.find("img").attr("src", "/static/visir/instruments/breadboard/images/butterfly-led-off.png");
 
-        this._value = toChange;
+            // set the other one as inactive
+            // $inactiveElement.addClass('active');
+            // $activeElement.removeClass('active');
+
+            // Make sure that the breadboard recognizes this change by updating the breadboard state
+            if (this._breadboard !== null) {
+                this._breadboard.Update();
+            }
+
+        }
+
+        this._value = ledValue;
         
     };
 
+    Breadboard.LEDs.prototype.setPinLocation = function(leftPosition, topPosition) {
+        this._leftPosition = leftPosition;
+        this._topPosition = topPosition;
+        if(this._topPosition < 261){
+            this._onTopHalf = true;
+        }
+    }
+
     // The getter function that obtains the x value coordinates of where the wire should be
     Breadboard.LEDs.prototype.GetWireX = function () {
-        return this._leftPosition + 5;
+        this.setPinLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
+        return this._leftPosition;
     }
 
     // The getter function that obtains the y value coordinates of where the wire should be
     Breadboard.LEDs.prototype.GetWireYBase = function () {
+        this.setPinLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
         if (this._onTopHalf) 
             return this._topPosition + 4*13;
         else
