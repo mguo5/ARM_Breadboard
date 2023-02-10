@@ -311,6 +311,9 @@ RHLab.Widgets.Breadboard = function() {
                         breadboard._outputs.push(switch0);
                         breadboard.AddComponent(switch0);
                     }
+                    // setInterval(function () {
+                    //     console.log(comp_obj.GetPos());
+                    // }, 1000);
                     comp_obj._PlaceInBin();
                 });
             });
@@ -619,6 +622,10 @@ RHLab.Widgets.Breadboard = function() {
     Breadboard.SwitchStatus = function(){
         this.connectedToGround = false;
         this.connectedToPower = false;
+    }
+
+    Breadboard.LEDStatus = function(){
+        this.connectedToGround = false;
     }
 
     Breadboard.NotStatus = function(){
@@ -946,10 +953,15 @@ RHLab.Widgets.Breadboard = function() {
         var errors = [];
         var changedSwitches = [];
         var switchStatus = [];
+        var ledStatus = [];
         var wires = this._breadboard._wires;
         console.log(this._breadboard._wires.length);
         var bufferCounter = 0;
 
+        for(var i = 0; i < this._leds.length; i++){
+            var ledStat = new Breadboard.LEDStatus();
+            ledStatus.push(ledStat);
+        }
         for(var i = 0; i < this._outputs.length; i++){
             var switchStat = new Breadboard.SwitchStatus();
             switchStatus.push(switchStat);
@@ -989,6 +1001,7 @@ RHLab.Widgets.Breadboard = function() {
         // console.log(_notGate);
         console.log(componentStatus);
         console.log(switchStatus);
+        console.log(ledStatus);
         // for (var i = this._originalNumberOfWires; i < wires.length; i++) {
         for (var i = 10; i < wires.length; i++) {
             var componentCounterNot1 = 0;
@@ -1078,18 +1091,22 @@ RHLab.Widgets.Breadboard = function() {
                 if(point1.x === wireX){
                     if(led._onTopHalf){
                         if((point1.y - wireY) <= 4*13){
-                            //success
-                            point1IsOutput = false;
-                            point1Code = "d" + ledCount.toString();
-                            return false;
+                            if((led._vertical && (point1.y - wireY) >= 0) || (!led._vertical && point1.y <= 271 && point1.y > 271 - 5*13)){
+                                //success
+                                point1IsOutput = false;
+                                point1Code = "d" + ledCount.toString();
+                                return false;
+                            }
                         }
                     }
                     else{
-                        if((wireY - point1.x) <= 4*13){
-                            //success
-                            point1IsOutput = false;
-                            point1Code = "d" + ledCount.toString();
-                            return false;
+                        if((wireY - point1.y) <= 4*13){
+                            if((led._vertical && (wireY - point1.y) >= 0) || (!led._vertical && point1.y >= 300 && point1.y < 300 + 5*13)){
+                                //success
+                                point1IsOutput = false;
+                                point1Code = "d" + ledCount.toString();
+                                return false;
+                            }
                         }
                     }
                 }
@@ -1266,18 +1283,22 @@ RHLab.Widgets.Breadboard = function() {
                 if(point2.x === wireX){
                     if(led._onTopHalf){
                         if((point2.y - wireY) <= 4*13){
-                            //success
-                            point2IsOutput = false;
-                            point2Code = "d" + ledCount.toString();
-                            return false;
+                            if((led._vertical && (point2.y - wireY) >= 0) || (!led._vertical && point2.y <= 271 && point2.y > 271 - 5*13)){
+                                //success
+                                point2IsOutput = false;
+                                point2Code = "d" + ledCount.toString();
+                                return false;
+                            }
                         }
                     }
                     else{
-                        if((wireY - point2.x) <= 4*13){
-                            //success
-                            point2IsOutput = false;
-                            point2Code = "d" + ledCount.toString();
-                            return false;
+                        if((wireY - point2.y) <= 4*13){
+                            if((led._vertical && (wireY - point2.y) >= 0) || (!led._vertical && point2.y >= 300 && point2.y < 300 + 5*13)){
+                                //success
+                                point2IsOutput = false;
+                                point2Code = "d" + ledCount.toString();
+                                return false;
+                            }
                         }
                     }
                 }
@@ -1378,12 +1399,49 @@ RHLab.Widgets.Breadboard = function() {
 
             // Check to see if gates are properly powered
             // not gate
+            componentCounterLocal = 0;
+            var componentCounterLED = 0;
             var componentCounterSwitch = 0;
             var componentCounterNot = 0;
             var componentCounterAnd = 0;
             var componentCounterOr = 0;
             var notPowered = null;
             // check point 1
+            var ledGrounded = [null, null];
+            $.each(this._leds, function(pos, led){
+                ledGrounded = led.checkIfGround(point1);
+                if(ledGrounded[0] != null){
+                    componentCounterLED = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(ledGrounded[0] === false && ledGrounded[1] === true && finder.IsGround(point2)){
+                ledStatus[componentCounterLocal].connectedToGround = true;
+                continue;
+            }
+            if(ledGrounded[0] === false && ledGrounded[1] === false){
+                ledStatus[componentCounterLocal].connectedToGround = true;
+            }
+            // check point 2
+            ledGrounded = [null, null];
+            componentCounterLocal = 0;
+            $.each(this._leds, function(pos, led){
+                ledGrounded = led.checkIfGround(point2);
+                if(ledGrounded[0] != null){
+                    componentCounterLED = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(ledGrounded[0] === false && ledGrounded[1] && finder.IsGround(point1)){
+                ledStatus[componentCounterLED].connectedToGround = true;
+                continue;
+            }
+            if(ledGrounded[0] === false && ledGrounded[1] === false){
+                ledStatus[componentCounterLED].connectedToGround = true;
+            }
+
             var switchPowered = null;
             componentCounterLocal = 0;
             $.each(this._outputs, function(pos, sw){
@@ -1395,11 +1453,11 @@ RHLab.Widgets.Breadboard = function() {
                 componentCounterLocal += 1;
             });
             if(switchPowered === true && finder.IsPower(point2)){
-                switchStatus[componentCounterLocal].connectedToPower = true;
+                switchStatus[componentCounterSwitch].connectedToPower = true;
                 continue;
             }
             else if(switchPowered === false && finder.IsGround(point2)){
-                switchStatus[componentCounterLocal].connectedToGround = true;
+                switchStatus[componentCounterSwitch].connectedToGround = true;
                 continue;
             }
             // check point 2
@@ -1414,11 +1472,11 @@ RHLab.Widgets.Breadboard = function() {
                 componentCounterLocal += 1;
             });
             if(switchPowered === true && finder.IsPower(point1)){
-                switchStatus[componentCounterLocal].connectedToPower = true;
+                switchStatus[componentCounterSwitch].connectedToPower = true;
                 continue;
             }
             else if(switchPowered === false && finder.IsGround(point1)){
-                switchStatus[componentCounterLocal].connectedToGround = true;
+                switchStatus[componentCounterSwitch].connectedToGround = true;
                 continue;
             }
 
@@ -1686,6 +1744,12 @@ RHLab.Widgets.Breadboard = function() {
                 console.log("Switch not properly hooked up");
             }
         }
+        for(var i = 0; i < ledStatus.length; i++){
+            if(ledStatus[i].connectedToGround == false){
+                errors.push("[!] Error");
+                console.log("LED not properly hooked up");
+            }
+        }
         if(errors.length > 0){
             return "Error in design";
         }
@@ -1777,15 +1841,14 @@ RHLab.Widgets.Breadboard = function() {
     Breadboard.LEDs = function(identifier, imageBase, leftPosition, topPosition, visirObj) {
         var self = this;
 
-        var image1 = imageBase + "led-off.png";
-        var image2 = imageBase + "led-on.png";
+        // var image1 = imageBase + "led-off.png";
+        // var image2 = imageBase + "led-on.png";
         
         this._objVisir = visirObj;
-        console.log(this._objVisir);
         this._leftPosition = leftPosition;
         this._topPosition = topPosition;
         // Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1, image2);
-
+        this._vertical = this._objVisir.translation.rot == "0"
         this._value = false;
         this._onTopHalf = false;
         if(topPosition < 261){
@@ -1841,26 +1904,83 @@ RHLab.Widgets.Breadboard = function() {
     };
 
     Breadboard.LEDs.prototype.setPinLocation = function(leftPosition, topPosition) {
+        this._vertical = this._objVisir.translation.rot == "0";
+        // LED is vertical
         this._leftPosition = leftPosition;
         this._topPosition = topPosition;
+        
         if(this._topPosition < 261){
             this._onTopHalf = true;
+        }
+        else{
+            this._onTopHalf = false;
         }
     }
 
     // The getter function that obtains the x value coordinates of where the wire should be
     Breadboard.LEDs.prototype.GetWireX = function () {
         this.setPinLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
-        return this._leftPosition;
+        if(this._vertical){
+            return this._leftPosition;
+        }
+        // LED is horizontal
+        else {
+            return this._leftPosition - 2*13;
+        }
     }
 
     // The getter function that obtains the y value coordinates of where the wire should be
     Breadboard.LEDs.prototype.GetWireYBase = function () {
         this.setPinLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
-        if (this._onTopHalf) 
-            return this._topPosition + 4*13;
-        else
+        if(this._vertical){
+            if (this._onTopHalf) 
+                return this._topPosition + 2*13;
+            else
+                return this._topPosition - 2*13;
+            }
+        // LED is horizontal
+        else {
             return this._topPosition;
+        }
+       
+    }
+
+    Breadboard.LEDs.prototype.checkIfGround = function (point) {
+        var isGround = null;
+        var requiresPoint = null;
+        var yPos = this.GetWireYBase();
+        var xPos = this.GetWireX();
+        if(this._vertical){
+            if(this._onTopHalf){
+                yPos = yPos - 4*13;
+            }
+            else{
+                yPos = yPos + 4*13;
+            }
+
+            if (xPos >= 177 && xPos < 541) {
+                if (yPos == 406 || yPos == 159) {
+                    isGround = false;
+                    requiresPoint = false;
+                }
+            }
+        }
+        else{
+            xPos = xPos + 4*13;
+            if(this._onTopHalf){
+                if(point.x == xPos && point.y > 159 && point.y < 261){
+                    isGround = false;
+                    requiresPoint = true;
+                }
+            }
+            else{
+                if(point.x == xPos && point.y > 261 && point.y << 406){
+                    isGround = false;
+                    requiresPoint = true;
+                }
+            }
+        }
+        return [isGround, requiresPoint];
     }
 
     // The switch objects in the breadboard

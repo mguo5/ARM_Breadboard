@@ -70,6 +70,9 @@
 			<rotation ox="-6" oy ="-26" image="butterfly-led-off.png" rot="0">
 				<pins><pin x="0" y="0" /><pin x="0"  y="26" /></pins>
 			</rotation>
+			<rotation ox="-26" oy ="-6" image="butterfly-led-off.png" rot="90">
+				<pins><pin x="0" y="0" /><pin x="26"  y="0" /></pins>
+			</rotation>
 		</rotations>
 	</component>
 	<component type="Switch" value="" pins="2">
