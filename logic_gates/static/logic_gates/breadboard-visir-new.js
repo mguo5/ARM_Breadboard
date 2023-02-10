@@ -131,7 +131,8 @@ RHLab.Widgets.Breadboard = function() {
         this._orGate = []; //or gate
         this._errors = [];  //potential errors
         this._changedSwitches = [];
-        this._numberOfSwitches = numberOfSwitches || DEFAULT_NUMBER_OF_SWITCHES;
+        // this._numberOfSwitches = numberOfSwitches || DEFAULT_NUMBER_OF_SWITCHES;
+        this._numberOfSwitches = 0;
         this._imageBase = imageBase || (window.STATIC_ROOT + "resources/img/");
         this._enableNetwork = (enableNetwork === undefined)?true:enableNetwork;
 
@@ -235,7 +236,13 @@ RHLab.Widgets.Breadboard = function() {
                             self._leds.splice(position, 1);
                             return false;
                         }
-                    })
+                    });
+                    $.each(self._outputs, function(position, eachSwitch){
+                        if(eachSwitch._objVisir._$circle){
+                            self._outputs.splice(position, 1);
+                            return false;
+                        }
+                    });
                     self._breadboard._selectedCompnent.remove();
                     self._breadboard.SelectComponent(null);
                 }
@@ -298,9 +305,11 @@ RHLab.Widgets.Breadboard = function() {
                         breadboard.AddComponent(led0);
                         // breadboard._experiment.push(comp_obj);
                     }
-                    // setInterval(function () {
-                    //     console.log(comp_obj.GetPos());
-                    // }, 1000);
+                    else if(comp_obj._type == "Switch"){
+                        var switch0 = new RHLab.Widgets.Breadboard.Switch("Switch1", imageBase, xPos, yPos, comp_obj);
+                        breadboard._outputs.push(switch0);
+                        breadboard.AddComponent(switch0);
+                    }
                     comp_obj._PlaceInBin();
                 });
             });
@@ -604,6 +613,11 @@ RHLab.Widgets.Breadboard = function() {
             return [this.gateTypes[code[0]], pointPinNum];
         }
         return [null, null];
+    }
+
+    Breadboard.SwitchStatus = function(){
+        this.connectedToGround = false;
+        this.connectedToPower = false;
     }
 
     Breadboard.NotStatus = function(){
@@ -930,9 +944,15 @@ RHLab.Widgets.Breadboard = function() {
         var componentStatus = {};
         var errors = [];
         var changedSwitches = [];
+        var switchStatus = [];
         var wires = this._breadboard._wires;
         console.log(this._breadboard._wires.length);
         var bufferCounter = 0;
+
+        for(var i = 0; i < this._outputs.length; i++){
+            var switchStat = new Breadboard.SwitchStatus();
+            switchStatus.push(switchStat);
+        }
 
         var _notGate = this._notGate;
         componentStatus.notStatus = [];
@@ -967,8 +987,9 @@ RHLab.Widgets.Breadboard = function() {
 
         // console.log(_notGate);
         console.log(componentStatus);
+        console.log(switchStatus);
         // for (var i = this._originalNumberOfWires; i < wires.length; i++) {
-        for (var i = 22; i < wires.length; i++) {
+        for (var i = 10; i < wires.length; i++) {
             var componentCounterNot1 = 0;
             var componentCounterAnd1 = 0;
             var componentCounterOr1 = 0;
@@ -1356,11 +1377,50 @@ RHLab.Widgets.Breadboard = function() {
 
             // Check to see if gates are properly powered
             // not gate
+            var componentCounterSwitch = 0;
             var componentCounterNot = 0;
             var componentCounterAnd = 0;
             var componentCounterOr = 0;
             var notPowered = null;
             // check point 1
+            var switchPowered = null;
+            componentCounterLocal = 0;
+            $.each(this._outputs, function(pos, sw){
+                switchPowered = sw.checkIfPowered(point1);
+                if(switchPowered != null){
+                    componentCounterSwitch = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(switchPowered === true && finder.IsPower(point2)){
+                switchStatus[componentCounterLocal].connectedToPower = true;
+                continue;
+            }
+            else if(switchPowered === false && finder.IsGround(point2)){
+                switchStatus[componentCounterLocal].connectedToGround = true;
+                continue;
+            }
+            // check point 2
+            switchPowered = null;
+            componentCounterLocal = 0;
+            $.each(this._outputs, function(pos, sw){
+                switchPowered = sw.checkIfPowered(point2);
+                if(switchPowered != null){
+                    componentCounterSwitch = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(switchPowered === true && finder.IsPower(point1)){
+                switchStatus[componentCounterLocal].connectedToPower = true;
+                continue;
+            }
+            else if(switchPowered === false && finder.IsGround(point1)){
+                switchStatus[componentCounterLocal].connectedToGround = true;
+                continue;
+            }
+
             componentCounterLocal = 0;
             $.each(_notGate, function(pos, gate){
                 notPowered = gate.CheckIfPower(point1);
@@ -1619,6 +1679,15 @@ RHLab.Widgets.Breadboard = function() {
             }
 
         }
+        for(var i = 0; i < switchStatus.length; i++){
+            if(switchStatus[i].connectedToGround == false || switchStatus[i].connectedToPower == false){
+                errors.push("[!] Error");
+                console.log("Switch not properly hooked up");
+            }
+        }
+        if(errors.length > 0){
+            return "Error in design";
+        }
 
         var messages = [];
         $.each(componentStatus, function(pos, particularComponentStatus){
@@ -1794,21 +1863,33 @@ RHLab.Widgets.Breadboard = function() {
     }
 
     // The switch objects in the breadboard
-    Breadboard.Switch = function (identifier, imageBase, leftPosition, topPosition) {
+    Breadboard.Switch = function (identifier, imageBase, leftPosition, topPosition, objVisir) {
         var self = this;
         // Obtain the two images for the switches from the static folder
         var image1 = imageBase + "switch-left-small.jpg";
         var image2 = imageBase + "switch-right-small.jpg";
 
-        Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1, image2);
+        if(objVisir){
+            this._objVisir = objVisir;
+        }
+
+        this._leftPosition = leftPosition;
+        this._rightPosition = topPosition;
+        console.log(this._leftPosition);
+        console.log(this._topPosition);
+        // Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1, image2);
 
         // Link appropriate css that makes the mouse become a pointer
-        this._$elem.css({'cursor': 'pointer'});
+        if(objVisir){
+            this._objVisir._$elem.css({'cursor': 'pointer'});
 
-        this._value = false;
-        this._$elem.find('img').click(function () {
-            self._Change();
-        });
+            this._value = false;
+            this._objVisir._$elem.find('img').click(function () {
+                console.log("switch pressed");
+                self._Change();
+            });
+        }
+        
     };
 
     Breadboard.Switch.prototype = Object.create(Breadboard.Component.prototype);
@@ -1819,13 +1900,20 @@ RHLab.Widgets.Breadboard = function() {
         this._value = !this._value;
         this._valueChanged = true;
 
+        if(this._value){
+            this._objVisir._$elem.find("img").attr("src", "/static/visir/instruments/breadboard/images/butterfly-switch-left-small.jpg");
+        }
+        else{
+            this._objVisir._$elem.find("img").attr("src", "/static/visir/instruments/breadboard/images/butterfly-switch-right-small.jpg");
+        }
+
         // swap between the two different images
-        var $inactiveElement = this._$elem.find('img:not(.active)');
-        var $activeElement = this._$elem.find('img.active');
+        // var $inactiveElement = this._$elem.find('img:not(.active)');
+        // var $activeElement = this._$elem.find('img.active');
 
         // set the other one as inactive
-        $inactiveElement.addClass('active');
-        $activeElement.removeClass('active');
+        // $inactiveElement.addClass('active');
+        // $activeElement.removeClass('active');
 
         // Make sure that the breadboard recognizes this change by updating the breadboard state
         if (this._breadboard !== null) {
@@ -1838,13 +1926,43 @@ RHLab.Widgets.Breadboard = function() {
         return this._value;
     }
 
+    Breadboard.Switch.prototype.checkIfPowered = function(point){
+        var wireYBase = this.GetWireYBase();
+        if(point.x == this.GetLeftX() && point.y >= wireYBase && point.y <= (wireYBase + 4*VISIR_SQUARE_SIZE)){
+            return true;
+        }
+        else if(point.x == this.GetRightX() && point.y >= wireYBase && point.y <= (wireYBase + 4*VISIR_SQUARE_SIZE)){
+            return false;
+        }
+        else{
+            return null;
+        }
+    }
+
+    Breadboard.Switch.prototype.SetSwitchLocation = function(xPos, yPos) {
+        this._leftPosition = xPos;
+        this._topPosition = yPos;
+    }
+
+    Breadboard.Switch.prototype.GetLeftX = function(){
+        this.SetSwitchLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
+        return this._leftPosition - 13;
+    }
+
+    Breadboard.Switch.prototype.GetRightX = function() {
+        this.SetSwitchLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
+        return this._leftPosition + 13;
+    }
     // The getter function that obtains the x value coordinates of where the wire should be
     Breadboard.Switch.prototype.GetWireX = function () {
-        return this._leftPosition + 20;
+        this.SetSwitchLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
+        return this._leftPosition;
+        // return this._leftPosition + 20;
     }
 
     // The getter function that obtains the y value coordinates of where the wire should be
     Breadboard.Switch.prototype.GetWireYBase = function () {
+        this.SetSwitchLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
         if (this._topPosition > 300) 
             return 302;
         else

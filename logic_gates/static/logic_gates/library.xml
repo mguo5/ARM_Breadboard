@@ -74,7 +74,7 @@
 	</component>
 	<component type="Switch" value="" pins="2">
 		<rotations>
-			<rotation ox="-8" oy ="-27" image="butterfly-switch-left-small.jpg" rot="0">
+			<rotation ox="-20" oy ="-8" image="butterfly-switch-left-small.jpg" rot="0">
 				<pins><pin x="0" y="-26" /><pin x="0"  y="26" /></pins>
 			</rotation>
 		</rotations>

@@ -9,7 +9,11 @@
  ***************************************************/
 
  function printLog(){
-    var myString = breadboard.Update()
+    var myString = breadboard.Update();
+    if(breadboard._leds.length){
+        var curVal = breadboard._leds[0]._value;
+        breadboard._leds[0]._Change(!curVal);
+    }
     // var myString = breadboard.CalculateWiringProtocolMessage();
     // console.log(breadboard);
     // console.log(breadboard._outputState);
