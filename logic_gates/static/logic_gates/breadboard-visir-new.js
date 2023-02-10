@@ -199,6 +199,7 @@ RHLab.Widgets.Breadboard = function() {
                 self._andGate = [];
                 self._orGate = [];
                 self._leds = [];
+                self._outputs = [];
 			}
 		});
 
