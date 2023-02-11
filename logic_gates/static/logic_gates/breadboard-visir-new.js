@@ -1412,16 +1412,20 @@ RHLab.Widgets.Breadboard = function() {
                 ledGrounded = led.checkIfGround(point1);
                 if(ledGrounded[0] != null){
                     componentCounterLED = componentCounterLocal;
-                    return false;
+                    if(ledGrounded[1] == true){
+                        return false
+                    }
+                    else{
+                        if(ledGrounded[0] === false && ledGrounded[1] === false){
+                            ledStatus[componentCounterLED].connectedToGround = true;
+                        }
+                    }
                 }
                 componentCounterLocal += 1;
             });
             if(ledGrounded[0] === false && ledGrounded[1] === true && finder.IsGround(point2)){
-                ledStatus[componentCounterLocal].connectedToGround = true;
+                ledStatus[componentCounterLED].connectedToGround = true;
                 continue;
-            }
-            if(ledGrounded[0] === false && ledGrounded[1] === false){
-                ledStatus[componentCounterLocal].connectedToGround = true;
             }
             // check point 2
             ledGrounded = [null, null];
@@ -1430,16 +1434,20 @@ RHLab.Widgets.Breadboard = function() {
                 ledGrounded = led.checkIfGround(point2);
                 if(ledGrounded[0] != null){
                     componentCounterLED = componentCounterLocal;
-                    return false;
+                    if(ledGrounded[1] == true){
+                        return false
+                    }
+                    else{
+                        if(ledGrounded[0] === false && ledGrounded[1] === false){
+                            ledStatus[componentCounterLED].connectedToGround = true;
+                        }
+                    }
                 }
                 componentCounterLocal += 1;
             });
             if(ledGrounded[0] === false && ledGrounded[1] && finder.IsGround(point1)){
                 ledStatus[componentCounterLED].connectedToGround = true;
                 continue;
-            }
-            if(ledGrounded[0] === false && ledGrounded[1] === false){
-                ledStatus[componentCounterLED].connectedToGround = true;
             }
 
             var switchPowered = null;
