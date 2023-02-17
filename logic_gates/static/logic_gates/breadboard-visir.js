@@ -1,14 +1,25 @@
 /****************************************************
  * Author: Matt Guo
- * Course: EE475/EE542
  * Name: breadboard-visir.js
- * Affiliation: University of Washington
+ * Affiliation: Remote Hub Lab
  * Functionality: The javascript backend for the Flask breadboard GUI,
  * handling the client functionality. Breadboard components contain:
  * switches, not gate, and gate, and or gates. Breadboard.Update() contains
  * the update method, checked upon every user button click to change the states
  * of the components in the breadboard
  ***************************************************/
+function extend(Child, Parent){
+    Child.prototype = inherit(Parent.prototype);
+    Child.prototype.constructor = Child;
+    Child.parent = Parent.prototype;
+}
+
+function inherit(proto){
+    function F(){}
+    F.prototype = proto
+    return new F
+}
+
 // Define RHLab JSON package
 if(typeof(RHLab) === "undefined") {
     RHLab = {};
@@ -21,16 +32,21 @@ if(typeof(RHLab.Widgets) === "undefined") {
 RHLab.Widgets.Breadboard = function() {
 
     var VISIR_SQUARE_SIZE = 13;
-    var DEFAULT_NUMBER_OF_SWITCHES = 18;
+    var DEFAULT_NUMBER_OF_SWITCHES = 0;
 
-    // Associate which of the 50-pin GPIO will be outputs (inputs to the microcontroller)
+    // Define the outputs from the 40-pin GPIO for the DE1-SoC
     var OUTPUTS_BY_PIN = {
-        07: 'PC1',  // GPIO6 //PC1
-        08: 'V_SW2',  // GPIO7
-        09: 'V_SW3',  // GPIO8
-        10: 'V_SW4',  // GPIO9
-        11: 'PA1', //PA1
-        12: 'temp',
+        31: 'V_LED0', // GPIO26
+        32: 'V_LED1', // GPIO27
+    };
+
+    // Define the inputs from the 40-pin GPIO for the DE1-SoC
+    var INPUTS_BY_PIN = {
+        06: 'V_SW1',  // GPIO6 //PC1
+        07: 'V_SW2',  // GPIO7
+        08: 'V_SW3',  // GPIO8
+        09: 'V_SW4',  // GPIO9
+        10: 'PA1', //PA1
         13: 'V_SW5',  // GPIO10
         14: 'V_SW6',  // GPIO11
         15: 'V_SW7',  // GPIO12
@@ -41,35 +57,9 @@ RHLab.Widgets.Breadboard = function() {
         20: 'V_SW12', // GPIO17
         21: 'PB1', // GPIO18  //PB1
         22: 'V_SW14', // GPIO19
-        //23: 'V_SW15', // GND
+        23: 'V_SW15', // GND
         24: 'V_SW16', // GPIO21
         25: 'V_SW17', // GPIO22
-        26: 'V_SW18',
-        27: 'V_SW19',
-        28: 'V_SW20',
-        29: 'V_SW21',
-        30: 'V_SW22',
-        33: 'V_SW23',
-        34: 'V_SW24',
-        35: 'V_SW25',
-        36: 'V_SW26',
-        37: 'V_SW27',
-        38: 'V_SW28',
-        39: 'V_SW29',
-        40: 'V_SW30',
-        41: 'V_SW31',
-        42: 'V_SW32',
-        43: 'V_SW33',
-        44: 'PD12', //Green
-        45: 'PD13', //Orange
-        46: 'PD14', //Red
-        47: 'PD15' //Blue
-    };
-
-    // Associate which of the microcontroller will be inputs to the breadboard (output from the GPIO)
-    var INPUTS_BY_PIN = {
-        31: 'V_LED0', // GPIO26
-        32: 'V_LED1', // GPIO27
     };
 
     // Function called by template.html for flask that initalizes a <div> for the breadboard
@@ -83,12 +73,16 @@ RHLab.Widgets.Breadboard = function() {
             // pinNumber: true/false
         };
         this._outputs = []; // Switches
-        this._inputs = []; // LEDs
+        this._experiment = [];
+        this._leds = []; // LEDs
         this._notGate = []; // not gate
         this._andGate = []; //and gate
         this._orGate = []; //or gate
+        this._xorGate = []  //xor gate ***newly added***
         this._errors = [];  //potential errors
-        this._numberOfSwitches = numberOfSwitches || DEFAULT_NUMBER_OF_SWITCHES;
+        this._changedSwitches = [];
+        // this._numberOfSwitches = numberOfSwitches || DEFAULT_NUMBER_OF_SWITCHES;
+        this._numberOfSwitches = 0;
         this._imageBase = imageBase || (window.STATIC_ROOT + "resources/img/");
         this._enableNetwork = (enableNetwork === undefined)?true:enableNetwork;
 
@@ -107,13 +101,6 @@ RHLab.Widgets.Breadboard = function() {
         visir.Config.Set("dcPower25", false);
         visir.Config.Set("dcPowerM25", false);
 
-        // Not clean: override _ReadLibrary to return always a fixed list without
-        // making queries to the server
-        visir.Breadboard.prototype._ReadLibrary = function () {
-            this._$library = $("<components></components>");
-            if (this._onLibraryLoaded) 
-                me._onLibraryLoaded();
-        }
         this._breadboard = new visir.Breadboard(1, $element);
 
         // Don't need the visir functionality for: Instruments, Power Supplies
@@ -121,12 +108,178 @@ RHLab.Widgets.Breadboard = function() {
         this._AddPowerSupplies();
         this._AddComponents();
         // Create a Delete button to delete wires
-        this._$elem.find('.delete').click(function () {
+
+        $element.find(".reset").off("click");
+        $element.find(".reset").click( function(e) {
+            var me = self._breadboard;
+			if (!visir.Config.Get("readOnly"))
+			{
+				for(var i=0;i<me._components.length;i++) {
+					me._components[i].remove();
+				}
+
+				me.SelectWire(null);
+				me.SelectComponent(null);
+				// me._wires = [];
+				// me._DrawWires();
+                self._breadboard.Clear();
+
+                self._breadboard.LoadCircuit(getOriginalWires(self._numberOfSwitches));
+                self._originalNumberOfWires = self._breadboard._wires.length;
+                console.log(me._wires.length);
+
+                self._notGate = [];
+                self._andGate = [];
+                self._orGate = [];
+                self._xorGate = []; //***newly added */
+                self._leds = [];
+                self._outputs = [];
+
+                var myString = "yLFd0,d1,d2,d3,d4;\n";
+                // parent.postMessage({
+                //     messageType: "web2sim",
+                //     version: "1.0",
+                //     value: myString
+                // });
+			}
+		});
+
+        $element.find(".delete").off("click");
+        // override the delete button click to remove component rather than place in bin
+        $element.find('.delete').click(function () {
+            if (!visir.Config.Get("readOnly"))
+            {
+                var myString = "";
+                if (self._breadboard._selectedWire !== null) {
+                    self._breadboard._RemoveWire(self._breadboard._wires[self._breadboard._selectedWire]);
+                    self._breadboard.SelectWire(null);
+                }
+                if (self._breadboard._selectedCompnent) {
+                    // self._breadboard._selectedCompnent._PlaceInBin();
+                    $.each(self._notGate, function(position, gate){
+                        if(gate._objVisir._$circle){
+                            self._notGate.splice(position, 1);
+                            return false;
+                        }
+                    });
+                    $.each(self._andGate, function(position, gate){
+                        if(gate._objVisir._$circle){
+                            self._andGate.splice(position, 1);
+                            return false;
+                        }
+                    });
+                    $.each(self._orGate, function(position, gate){
+                        if(gate._objVisir._$circle){
+                            self._orGate.splice(position, 1);
+                            return false;
+                        }
+                    });
+                    //***newly added */
+                    $.each(self._xorGate, function(position, gate){
+                        if(gate._objVisir._$circle){
+                            self._xorGate.splice(position, 1);
+                            return false;
+                        }
+                    });
+                    $.each(self._leds, function(position, led){
+                        if(led._objVisir._$circle){
+                            myString = "yLFd" + position.toString() + "\n";
+                            self._leds.splice(position, 1);
+                            return false;
+                        }
+                    });
+                    $.each(self._outputs, function(position, eachSwitch){
+                        if(eachSwitch._objVisir._$circle){
+                            self._outputs.splice(position, 1);
+                            return false;
+                        }
+                    });
+                    self._breadboard._selectedCompnent.remove();
+                    self._breadboard.SelectComponent(null);
+                }
+            }
+            console.log("I hit the trash can");
+            // parent.postMessage({
+            //     messageType: "web2sim",
+            //     version: "1.0",
+            //     value: myString
+            // });
+            // example of changing img
+            // self._experiment[0]._$elem.find("img").attr("src", "/static/visir/instruments/breadboard/images/butterfly-led-on.png");
             self.Update();
         });
+        // this._$elem.find('.delete').click(function () {
+        //     self.Update();
+        // });
         $(document).on("mouseup.rem touchend.rem mouseup", function(e) {
             self.Update();
         });
+
+        $element.find(".teacher").off("click");
+
+        $element.find(".teacher").click(function(e) {
+            var me = self._breadboard;
+            $element.find(".componentbox").show();
+            $element.find(".componentlist-table").empty();
+            var $components = me._$library.find("component").each(function() {
+                var img   = $(this).find("rotation").attr("image");
+                var type  = $(this).attr("type");
+                var value = $(this).attr("value");
+                var img_html = '<tr class="component-list-row">\
+                <td>\
+                <img src="' + me._BuildImageUrl(img) + '"/>\
+                </td>\
+                <td>' + type + '</td>\
+                <td>' + value + '</td>\
+                </tr>';
+                $element.find(".componentlist-table").append(img_html);
+
+                $($element.find('.component-list-row').get(-1)).click(function(e){
+                    var comp_obj = me.CreateComponent(type, value);
+                    var xPos = comp_obj.GetPos().x;
+                    var yPos = comp_obj.GetPos().y;
+                    if(comp_obj._type == "Gate"){
+                        if(comp_obj._value == "NOT"){
+                            var not0 = new RHLab.Widgets.Breadboard.NotGate("NG1", imageBase, xPos, yPos, comp_obj); //274, 261
+                            self._notGate.push(not0);
+                            self.AddComponent(not0);
+                        }
+                        else if(comp_obj._value == "AND"){
+                            var and0 = new RHLab.Widgets.Breadboard.AndGate("AG1", imageBase, xPos, yPos, comp_obj);
+                            breadboard._andGate.push(and0);
+                            breadboard.AddComponent(and0);
+                        }
+                        else if(comp_obj._value == "OR"){
+                            var or0 = new RHLab.Widgets.Breadboard.OrGate("OG1", imageBase, xPos, yPos, comp_obj); // 456, 261
+                            breadboard._orGate.push(or0);
+                            breadboard.AddComponent(or0);
+                        }
+                        /***newly added */
+                        else if(comp_obj._value == "XOR"){
+                            var xor0 = new RHLab.Widgets.Breadboard.XorGate("XG1", imageBase, xPos, yPos, comp_obj); // 456, 261
+                            breadboard._xorGate.push(xor0);
+                            breadboard.AddComponent(xor0);
+                        }
+                    }
+                    else if(comp_obj._type == "LED"){
+                        var led0 = new RHLab.Widgets.Breadboard.LEDs("LED1", imageBase, xPos, yPos, comp_obj);
+                        breadboard._leds.push(led0);
+                        breadboard.AddComponent(led0);
+                        // breadboard._experiment.push(comp_obj);
+                    }
+                    else if(comp_obj._type == "Switch"){
+                        var switch0 = new RHLab.Widgets.Breadboard.Switch("Switch1", imageBase, xPos, yPos, comp_obj);
+                        breadboard._outputs.push(switch0);
+                        breadboard.AddComponent(switch0);
+                    }
+                    // setInterval(function () {
+                    //     console.log(comp_obj.GetPos());
+                    // }, 1000);
+                    comp_obj._PlaceInBin();
+                });
+            });
+        });
+
 
         this._breadboard.LoadCircuit(getOriginalWires(this._numberOfSwitches));
         this._originalNumberOfWires = this._breadboard._wires.length;
@@ -209,8 +362,8 @@ RHLab.Widgets.Breadboard = function() {
 
     // Visir contains a bunch of Instruments, which is unimportant here. We can hide these
     Breadboard.prototype._HideInstruments = function () {
-        this._$elem.find('.bin .teacher').hide();
-        this._$elem.find('.bin .reset').hide();
+        // this._$elem.find('.bin .teacher').hide();
+        // this._$elem.find('.bin .reset').hide();
         this._$elem.find('.instrument.dmm').hide();
         this._$elem.find('.instrument.osc').hide();
         this._$elem.find('.instrument.fgen').hide();
@@ -264,9 +417,7 @@ RHLab.Widgets.Breadboard = function() {
             this._outputs.push(switchComponent);
             this.AddComponent(switchComponent);
         }
-
-        // The 50-pin connectior to the GPIO of the microcontroller should always be there. We can initialize it here
-        var jp1Image = this._imageBase + "connections_50.png";
+        var jp1Image = this._imageBase + "connections_40.png";
         var jp1 = new Breadboard.Component('JP1', 221, 22, jp1Image, null, 0);
         this.AddComponent(jp1);
     }
@@ -278,40 +429,13 @@ RHLab.Widgets.Breadboard = function() {
         component.SetBreadboard(this);
     }
 
-    // Input states to the breadboard is the output state of the microcontroller
-    Breadboard.prototype.UpdateInputState = function(state) {
-        var self = this;
-        if (!state.inputs)
-            return;
-
-        // check to see if any of the inputs states have or should be changed
-        var anyChanged = false;
-
-        // Sweep thorough the pins on the 50-pin GPIO that should be a input
-        $.each(this._inputState, function (pinNumber, currentState) {
-            var inputName = INPUTS_BY_PIN[pinNumber];
-            if (state.inputs[inputName] === undefined || state.inputs[inputName] === null)
-                return; // No input variable provided
-
-            if (state.inputs[inputName] != currentState) {
-                anyChanged = true;
-                self._inputState[pinNumber] = state.inputs[inputName];
-            }
-        });
-
-        // If there is a change, make sure to update the breadbaord
-        if (anyChanged) {
-            this.Update();
-        }
-    }
-
     Breadboard.PinFinder = function () {
     }
     // Make sure to use your logic gates with dimensions 50 x 43 pixels
     Breadboard.PinFinder.prototype.FindGpioPin = function(point) {
         // Return a GPIO pin
         // Crucial to make sure that the GPIO is 13 pixels apart
-        var factor = ((point.x - 229) / 13); // 13 is the number of pixels between GPIO pin points
+        var factor = ((point.x - 229) / VISIR_SQUARE_SIZE); // 13 is the number of pixels between GPIO pin points
                                              // 229 is the distance between left wall and the left edge of the GPIO connector
         if (point.y == 55) { // bottom row (1..39)
             if (point.x >= 229 && point.x <= 543) {
@@ -363,784 +487,1271 @@ RHLab.Widgets.Breadboard = function() {
         return false;
     }
 
-    // Error message handling: there are no errors found
-    Breadboard.prototype.ReportOK = function () {
-        $('#ll-breadboard-messages').text(ERROR_MESSAGES['ready']);
+    Breadboard.Helper = function(){
+        this.gpioCodeType = "g";
+        this.literalCodeType = "L";      // May need to expand
+        this.switchCodeType = "S";
+        this.ledCodeType = "d";
+        this.gateTypes = {
+            "n": "not",
+            "a": "and",
+            "o": "or",
+            "x": "xor"  //***newly added */
+        };
     }
 
-    // Error message handling: there is a message found
-    Breadboard.prototype.ReportError = function (key) {
-        $('#ll-breadboard-messages').text(ERROR_MESSAGES[key]);
+    Breadboard.Helper.prototype.NeedBuffer = function(code1, code2){
+        if(code1.length < 1 || code2.length < 1){
+            return;
+        }
+        if(code1[0] == this.gpioCodeType || code2[0] == this.gpioCodeType){
+            return false;
+        }
+        if(code1[0] == this.literalCodeType || code2[0] == this.literalCodeType){
+            return false;
+        }
+        if(code1[0] == this.switchCodeType || code2[0] == this.switchCodeType){
+            return false;
+        }
+        if(code1[0] == this.ledCodeType || code1[0] == this.ledCodeType){
+            return false;
+        }
+        return true;
+    }
+
+    Breadboard.Helper.prototype.ParseGate = function(code, pointPinNum) {
+        if(code.length < 1){
+            return;
+        }
+        if(code[0] == this.gpioCodeType){
+            return [code, pointPinNum];
+        }
+        if(code[0] == this.literalCodeType){
+            return [code, pointPinNum];
+        }
+        if(code[0] == this.switchCodeType){
+            return [code, pointPinNum];
+        }
+        if(code[0] == this.ledCodeType){
+            return [code, pointPinNum];
+        }
+        if(code[0] in this.gateTypes){
+            return [this.gateTypes[code[0]], pointPinNum];
+        }
+        return [null, null];
+    }
+
+    Breadboard.SwitchStatus = function(){
+        this.connectedToGround = false;
+        this.connectedToPower = false;
+    }
+
+    Breadboard.LEDStatus = function(){
+        this.connectedToGround = false;
+    }
+
+    Breadboard.NotStatus = function(){
+        this.connectedToGround = false;
+        this.connectedToPower = false;
+        // this.originalGate = originalGate;
+
+        this.gate1 = {
+            "input": null,
+            "output" : []
+        };
+
+        this.gate2 = {
+            "input": null,
+            "output" : []
+        };
+
+        this.gate3 = {
+            "input": null,
+            "output" : []
+        };
+
+        this.gate4 = {
+            "input": null,
+            "output" : []
+        };
+
+        this.gate5 = {
+            "input": null,
+            "output" : []
+        };
+
+        this.gate6 = {
+            "input": null,
+            "output" : []
+        };
+
+        this.gates = [this.gate1, this.gate2, this.gate3, this.gate4, this.gate5, this.gate6];
+    }
+
+    Breadboard.NotStatus.prototype.connectInput = function(inputPoint, whichGate){
+        this.gates[whichGate]["input"] = inputPoint;
+    }
+
+    Breadboard.NotStatus.prototype.connectOutput = function(outputPoint, whichGate){
+        this.gates[whichGate-1]["output"].push( outputPoint);
+    }
+
+    Breadboard.NotStatus.prototype.buildProtocolBlocks = function(errors) {
+        if(!this.connectedToGround){
+            errors.push(ERROR_MESSAGES["component-power"]);
+            return [];
+        }
+        if(!this.connectedToPower){
+            errors.push(ERROR_MESSAGES["component-power"]);
+            return [];
+        }
+
+        var messages = [];
+        $.each(this.gates, function(position, gate){
+            if(gate["output"].length < 1){
+                return;
+            }
+            if(gate["input"] == null){
+                return; // TODO: will change later
+            }
+            if(gate["output"].length == 1){
+                // only one output
+                messages.push('n'+gate["input"]+gate["output"]);
+            }
+            else{
+                var temp = 'n'+gate["input"];
+                for(var i = 0; i < gate["output"].length; i++){
+                    if(i < gate["output"].length - 1){
+                        temp = temp + gate["output"][i] + ',';
+                    }
+                    else{
+                        temp = temp + gate["output"][i];
+                    }
+                    
+                }
+                messages.push(temp);
+            }
+        });
+        return messages;
+    }
+
+    Breadboard.QuadDualInputGateStatus = function(){
+        this.connectedToGround = false;
+        this.connectedToPower = false;
+        // this.originalGate = originalGate;
+
+        this.gate1 = {
+            "input1": null,
+            "input2": null,
+            "output": []
+        };
+
+        this.gate2 = {
+            "input1": null,
+            "input2": null,
+            "output": []
+        };
+
+        this.gate3 = {
+            "input1": null,
+            "input2": null,
+            "output": []
+        };
+
+        this.gate4 = {
+            "input1": null,
+            "input2": null,
+            "output": []
+        };
+
+        this.gates = [this.gate1, this.gate2, this.gate3, this.gate4];
+    }
+
+    Breadboard.QuadDualInputGateStatus.prototype.connectInput = function(inputPoint, whichGate, whichInput){
+        this.gates[whichGate-1]["input"+whichInput.toString()] = inputPoint;
+    }
+
+    Breadboard.QuadDualInputGateStatus.prototype.connectOutput = function(outputPoint, whichGate){
+        this.gates[whichGate-1]["output"].push(outputPoint);
+    }
+
+    Breadboard.QuadDualInputGateStatus.prototype.buildProtocolBlocks = function(errors){
+        if(!this.connectedToGround){
+            errors.push(ERROR_MESSAGES["component-power"]);
+            return [];
+        }
+        if(!this.connectedToPower){
+            errors.push(ERROR_MESSAGES["component-power"]);
+            return [];
+        }
+
+        var messages = [];
+        var logicGateCodeName = this.getLogicGateCodeName();
+        $.each(this.gates, function(position, gate){
+            if(gate["output"].length < 1){
+                return;
+            }
+            if(gate["input1"] == null || gate["input2"] == null){
+                return; // TODO: will change later
+            }
+            if(gate["output"].length == 1){
+                // only one output
+                messages.push(logicGateCodeName+gate["input1"]+gate["input2"]+gate["output"]);
+            }
+            else{
+                var temp = logicGateCodeName+gate["input1"]+gate["input2"];
+                for(var i = 0; i < gate["output"].length; i++){
+                    if(i < gate["output"].length - 1){
+                        temp = temp + gate["output"][i] + ',';
+                    }
+                    else{
+                        temp = temp + gate["output"][i];
+                    }
+                    
+                }
+                messages.push(temp);
+            }
+            
+        });
+        return messages;
+    }
+
+    Breadboard.AndStatus = function(){
+        Breadboard.AndStatus.parent.constructor.apply(this)
+    }
+
+    extend(Breadboard.AndStatus, Breadboard.QuadDualInputGateStatus);
+
+    Breadboard.AndStatus.prototype.getLogicGateCodeName = function(){
+        return "a";
+    }
+
+    Breadboard.OrStatus = function(){
+        Breadboard.OrStatus.parent.constructor.apply(this)
+    }
+
+    extend(Breadboard.OrStatus, Breadboard.QuadDualInputGateStatus);
+
+    Breadboard.OrStatus.prototype.getLogicGateCodeName = function(){
+        return "o";
+    }
+
+    //***newly added */
+    Breadboard.XorStatus = function(){
+        Breadboard.XorStatus.parent.constructor.apply(this)
+    }
+
+    extend(Breadboard.XorStatus, Breadboard.QuadDualInputGateStatus);
+
+    Breadboard.XorStatus.prototype.getLogicGateCodeName = function(){
+        return "x";
     }
 
     // Big function in the javascript code, used to update the entirely of the breadboard layout
     Breadboard.prototype.Update = function() {
         // Initialize self variables used for checking throughout the update process
-        console.log("Updating...")
-        var self = this;
+        console.log("Updating...");
+        console.log(this);
+        var myString = this.CalculateWiringProtocolMessage();
+        // console.log(myString);
+        return myString;
+    }
 
-        var errors = false;
-        var wires = this._breadboard._wires;
-
+    Breadboard.prototype.CalculateWiringProtocolMessage = function(){
+        // Run through different wires
         var finder = new Breadboard.PinFinder();
+        var helper = new Breadboard.Helper();
+        
+        
+        
+        var componentStatus = {};
+        var errors = [];
+        var changedSwitches = [];
+        var switchStatus = [];
+        var ledStatus = [];
+        var wires = this._breadboard._wires;
+        console.log(this._breadboard._wires.length);
+        var bufferCounter = 0;
 
-        var previousGpioPins = [];
+        for(var i = 0; i < this._leds.length; i++){
+            var ledStat = new Breadboard.LEDStatus();
+            ledStatus.push(ledStat);
+        }
+        for(var i = 0; i < this._outputs.length; i++){
+            var switchStat = new Breadboard.SwitchStatus();
+            switchStatus.push(switchStat);
+        }
 
-        var processedInputs = [];
-        var processedOutputGpios = [];
-        this._errors = [];
-        this._protocol = [];
-        error_array = this._errors;
-        not_gates = this._notGate;
-        and_gates = this._andGate;
-        or_gates = this._orGate;
-        let bNum = 0;
-        // cycle between all new wires that the users have specified
-        for (var i = this._originalNumberOfWires; i < wires.length; i++) {
+        var _notGate = this._notGate;
+        componentStatus.notStatus = [];
+        for(var i = 0; i < _notGate.length; i++){
+            if(_notGate[i]._topPosition != 261){
+                errors.push(ERROR_MESSAGES["component-placement"]);
+            }
+            var notStatus = new Breadboard.NotStatus();
+            componentStatus.notStatus.push(notStatus);
+        }
+        var _andGate = this._andGate;
+        componentStatus.andStatus = [];
+        for(var i = 0; i < _andGate.length; i++){
+            if(_andGate[i]._topPosition != 261){
+                errors.push(ERROR_MESSAGES["component-placement"]);
+            }
+            var andStatus = new Breadboard.AndStatus();
+            componentStatus.andStatus.push(andStatus);
+        }
+        var _orGate = this._orGate;
+        componentStatus.orStatus = [];
+        for(var i = 0; i < _orGate.length; i++){
+            if(_orGate[i]._topPosition != 261){
+                errors.push(ERROR_MESSAGES["component-placement"]);
+            }
+            var orStatus = new Breadboard.OrStatus();
+            componentStatus.orStatus.push(orStatus);
+        }
+        //***newly added */
+        var _xorGate = this._xorGate;
+        componentStatus.xorStatus = [];
+        for(var i = 0; i < _xorGate.length; i++){
+            if(_xorGate[i]._topPosition != 261){
+                errors.push(ERROR_MESSAGES["component-placement"]);
+            }
+            var xorStatus = new Breadboard.XorStatus();
+            componentStatus.xorStatus.push(xorStatus);
+        }
+
+        var nonGateLeftovers = [];
+        var _leds = this._leds;
+
+        // console.log(_notGate);
+        console.log(componentStatus);
+        console.log(switchStatus);
+        console.log(ledStatus);
+        // for (var i = this._originalNumberOfWires; i < wires.length; i++) {
+        for (var i = 10; i < wires.length; i++) {
+            var componentCounterNot1 = 0;
+            var componentCounterAnd1 = 0;
+            var componentCounterOr1 = 0;
+            var componentCounterXor1 = 0; //***newly added */
+            var componentCounterNot2 = 0;
+            var componentCounterAnd2 = 0;
+            var componentCounterOr2 = 0;
+            var componentCounterXor2 = 0; //***newly added */
+            var componentCounterLocal = 0;
+            // Sweep through the different wires
             var wire = wires[i];
+            var point1 = wire._start;
+            var point2 = wire._end;
 
-            // Each wire must be connected to a GPIO at least. Otherwise, error
-            var gpioPin1 = finder.FindGpioPin(wire._start);  
-            var gpioPin2 = finder.FindGpioPin(wire._end);
-            var gpioPin;
-            var otherPoint;
-
-            // var andLProcessed = -1;
-            // var orLProcessed = -1;
-            
-            // This means that the current wire is not connected to a GPIO pin on either end
-            if (gpioPin1 === null && gpioPin2 === null) {
-                var gate_array = this._notGate;
-                var and_array = this._andGate;
-                var or_array = this._orGate;
-                if(finder.IsPower(wire._start) && finder.IsGround(wire._end)){
-                    this._errors.push(1);   //1: short somewhere, check circuit
-                    break;
+            // check if point1 is a virtual output or a virtual input
+            var point1IsOutput = null;
+            // check input:
+            // - check if output of FPGA, inputs to logic gate
+            var gpioPin = finder.FindGpioPin(point1);
+            var isVirtualInput = INPUTS_BY_PIN[gpioPin] !== undefined;
+            var point1Code = "";
+            if(isVirtualInput){
+                gpioPin = Object.keys(INPUTS_BY_PIN).indexOf(gpioPin.toString());
+                console.log(gpioPin);
+                point1IsOutput = false;
+                if(gpioPin < 10){
+                    // i.e. g07 or g09. Add a '0' string to have 2 numbers after g
+                    point1Code = "g" + "0" + gpioPin.toString();
                 }
-                else if(finder.IsPower(wire._end) && finder.IsGround(wire._start)){
-                    this._errors.push(1);   //1: short somewhere, check circuit
-                    break;
+                else{
+                    // i.e. g17 or g31. Will always have 2 numbers after g
+                    point1Code = "g" + gpioPin.toString();
                 }
-
-                // We would now like to check if one of the wires is connected to a logic gate somewhere
-                $.each(this._outputs, function (position, output) {
-                    var wireX = output.GetWireX();
-                    var wireYBase = output.GetWireYBase();
-                    
-                    var switch_wire;
-                    var logic_wire;
-                    var correct_switch = false;
-
-                    // We need to check both ends of the wire to see if one of them is a logic gate
-                    if(wireX == wire._start.x){
-                        switch_wire = wire._start;
-                        logic_wire = wire._end;
-                        correct_switch = true;
-                    }
-                    else if(wireX == wire._end.x){
-                        switch_wire = wire._end;
-                        logic_wire = wire._start;
-                        correct_switch = true;
-                    }
-
-                    // One end of the wire is connected to one of the switches on the breadbaoard
-                    if(correct_switch){
-                        if (switch_wire.y >= wireYBase && switch_wire.y <= (wireYBase + 4*VISIR_SQUARE_SIZE)) {
-                            // Check the other end of the wire to see if it is on a logic gate
-                            $.each(gate_array, function (position, gate) {
-                                var wirePositions = gate.GetPinLocation();
-                                for(var i = 0; i < wirePositions.length; i++){
-                                    if(logic_wire.x === wirePositions[i]){
-                                        if(logic_wire.y > gate._topPosition){
-                                            // bottom half
-                                            gate.SetValue(i+1, output.GetValue());
-                                        }
-                                        else{
-                                            //top half
-                                            gate.SetValue(14-i, output.GetValue());
-                                        }
-                                    }
-                                }
-                                /****************************************** */
-        
-                            });
-                            // CHeck the other end of the wire to see if it is on an and gate
-                            $.each(and_array, function (position, gate) {
-                                var wirePositions = gate.GetPinLocation();
-                                for(var i = 0; i < wirePositions.length; i++){
-                                    if(logic_wire.x === wirePositions[i]){
-                                        if(logic_wire.y > gate._topPosition){
-                                            // bottom half
-                                            gate.SetValue(i+1, output.GetValue());
-                                        }
-                                        else{
-                                            //top half
-                                            console.log(14-i);
-                                            gate.SetValue(14-i, output.GetValue());
-                                        }
-                                    }
-                                }
-                                /****************************************** */
-        
-                            });
-                            // Check the other end of the wire to see if it is on an or gate
-                            $.each(or_array, function (position, gate) {
-                                var wirePositions = gate.GetPinLocation();
-                                for(var i = 0; i < wirePositions.length; i++){
-                                    if(logic_wire.x === wirePositions[i]){
-                                        if(logic_wire.y > gate._topPosition){
-                                            // bottom half
-                                            gate.SetValue(i+1, output.GetValue());
-                                        }
-                                        else{
-                                            //top half
-                                            gate.SetValue(14-i, output.GetValue());
-                                        }
-                                    }
-                                }
-                                /****************************************** */
-        
-                            });
-                        }
-
-                    }
-
-                });
-
-                // Over here, we need to know if the wire is connected to a logic gate and a power rail, chained together
-                // First we need to check the not gate
-                $.each(this._notGate, function (position, notGate) {
-                    var wirePositions =notGate.GetPinLocation();
-                    // allow direct pin connections to GND and 3v3
-                    
-                    for(var i = 0; i < wirePositions.length; i++){
-                        if(wire._start.x === wirePositions[i] && wire._start.y > 150 && wire._start.y < 400){
-                            //wire._start is a logic wire
-                            if(finder.IsPower(wire._end)){
-                                if(wire._start.y > notGate._topPosition){
-                                    // bottom half
-                                    notGate.SetValue(i+1, true);
-                                    notGate._protocol[i] = "LT";
-                                }
-                                else{
-                                    //top half
-                                    notGate.SetValue(14-i, true);
-                                    notGate._protocol[13-i] = "LT";
-                                    
-                                }
-                            }
-                            else if(finder.IsGround(wire._end)){
-                                if(wire._start.y > notGate._topPosition){
-                                    // bottom half
-                                    notGate.SetValue(i+1, false);
-                                    notGate._protocol[i] = "LF";
-                                }
-                                else{
-                                    //top half
-                                    notGate.SetValue(14-i, false);
-                                    notGate._protocol[13-i] = "LF";
-                                }
-                            }
-                        }
-                        else if(wire._end.x === wirePositions[i] && wire._end.y > 150 && wire._end.y < 400){
-                            //wire._end is a logic wire
-                            if(finder.IsPower(wire._start)){
-                                if(wire._end.y > notGate._topPosition){
-                                    // bottom half
-                                    notGate.SetValue(i+1, true);
-                                    notGate._protocol[i] = "LT";
-                                }
-                                else{
-                                    //top half
-                                    notGate.SetValue(14-i, true);
-                                    notGate._protocol[13-i] = "LT";
-                                }
-                            }
-                            else if(finder.IsGround(wire._start)){
-                                if(wire._end.y > notGate._topPosition){
-                                    // bottom half
-                                    notGate.SetValue(i+1, false);
-                                    notGate._protocol[i] = "LF";
-                                }
-                                else{
-                                    //top half
-                                    notGate.SetValue(14-i, false);
-                                    notGate._protocol[13-i] = "LF";
-                                }
+            }
+            var notPinInput = [false, -1]; // if in gate, gate location
+            componentCounterLocal = 0;
+            $.each(_notGate, function(pos, gate){
+                notPinInput = gate.CheckIfInput(point1);
+                if(notPinInput[0]){
+                    componentCounterNot1 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            var inputPoint1GateNum = -1;
+            var inputPoint1InputNum = 1;
+            if(notPinInput[0]){
+                point1IsOutput = false;
+                inputPoint1GateNum = notPinInput[1];
+                point1Code = "n";
+            }
+            var andPinInput = [false, -1, -1]; // if in gate, gate location, input num
+            componentCounterLocal = 0;
+            $.each(_andGate, function(pos, gate){
+                andPinInput = gate.CheckIfInput(point1);
+                if(andPinInput[0]){
+                    componentCounterAnd1 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(andPinInput[0]){
+                point1IsOutput = false;
+                inputPoint1GateNum = andPinInput[1];
+                inputPoint1InputNum = andPinInput[2];
+                point1Code = "a";
+            }
+            var orPinInput = [false, -1, -1]; // if in gate, gate location, input num
+            componentCounterLocal = 0;
+            $.each(_orGate, function(pos, gate){
+                orPinInput = gate.CheckIfInput(point1);
+                if(orPinInput[0]){
+                    componentCounterOr1 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(orPinInput[0]){
+                point1IsOutput = false;
+                inputPoint1GateNum = orPinInput[1];
+                inputPoint1InputNum = orPinInput[2];
+                point1Code = "o";
+            }
+            //***newly added */
+            var xorPinInput = [false, -1, -1]; // if in gate, gate location, input num
+            componentCounterLocal = 0;
+            $.each(_xorGate, function(pos, gate){
+                xorPinInput = gate.CheckIfInput(point1);
+                if(xorPinInput[0]){
+                    componentCounterXor1 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(xorPinInput[0]){
+                point1IsOutput = false;
+                inputPoint1GateNum = xorPinInput[1];
+                inputPoint1InputNum = xorPinInput[2];
+                point1Code = "x";
+            }
+            var ledCount = 0;
+            $.each(_leds, function(pos, led){
+                var wireX = led.GetWireX();
+                var wireY = led.GetWireYBase();
+                // check if led is on top half or bottom half
+                if(point1.x === wireX){
+                    if(led._onTopHalf){
+                        if((point1.y - wireY) <= 4*VISIR_SQUARE_SIZE){
+                            if((led._vertical && (point1.y - wireY) >= 0) || (!led._vertical && point1.y <= 271 && point1.y > 271 - 5*VISIR_SQUARE_SIZE)){
+                                //success
+                                point1IsOutput = false;
+                                point1Code = "d" + ledCount.toString();
+                                return false;
                             }
                         }
                     }
-                });
-                // Over here, we need to know if the wire is connected to a logic gate and a power rail, chained together
-                // Next we need to check the and gate
-                $.each(this._andGate, function (position, andGate) {
-                    var wirePositions =andGate.GetPinLocation();
-                    // allow direct pin connections to GND and 3v3
-                    
-                    for(let i = 0; i < wirePositions.length; i++){
-                        if(wire._start.x === wirePositions[i] && wire._start.y > 150 && wire._start.y < 400){
-                            //wire._start is a logic wire
-                            if(finder.IsPower(wire._end)){
-                                if(wire._start.y > andGate._topPosition){
-                                    // bottom half
-                                    andGate.SetValue(i+1, true);
-                                    andGate._protocol[i] = "LT";
-                                    andLProcessed = i;
-                                }
-                                else{
-                                    //top half
-                                    andGate.SetValue(14-i, true);
-                                    andGate._protocol[13-i] = "LT";
-                                    andLProcessed = 13-i;
-                                }
-                            }
-                            else if(finder.IsGround(wire._end)){
-                                if(wire._start.y > andGate._topPosition){
-                                    // bottom half
-                                    andGate.SetValue(i+1, false);
-                                    andGate._protocol[i] = "LF";
-                                    andLProcessed = i;
-                                }
-                                else{
-                                    //top half
-                                    andGate.SetValue(14-i, false);
-                                    andGate._protocol[13-i] = "LF";
-                                    andLProcessed = 13-i;
-                                }
-                            }
-                        }
-                        else if(wire._end.x === wirePositions[i] && wire._end.y > 150 && wire._end.y < 400){
-                            //wire._end is a logic wire
-                            if(finder.IsPower(wire._start)){
-                                if(wire._end.y > andGate._topPosition){
-                                    // bottom half
-                                    andGate.SetValue(i+1, true);
-                                    andGate._protocol[i] = "LT";
-                                    andLProcessed = i;
-                                }
-                                else{
-                                    //top half
-                                    andGate.SetValue(14-i, true);
-                                    andGate._protocol[13-i] = "LT";
-                                    andLProcessed = 13-i;
-                                }
-                            }
-                            else if(finder.IsGround(wire._start)){
-                                if(wire._end.y > andGate._topPosition){
-                                    // bottom half
-                                    andGate.SetValue(i+1, false);
-                                    andGate._protocol[i] = "LF";
-                                    andLProcessed = i;
-                                }
-                                else{
-                                    //top half
-                                    andGate.SetValue(14-i, false);
-                                    andGate._protocol[13-i] = "LF";
-                                    andLProcessed = 13-i;
-                                }
+                    else{
+                        if((wireY - point1.y) <= 4*VISIR_SQUARE_SIZE){
+                            if((led._vertical && (wireY - point1.y) >= 0) || (!led._vertical && point1.y >= 300 && point1.y < 300 + 5*VISIR_SQUARE_SIZE)){
+                                //success
+                                point1IsOutput = false;
+                                point1Code = "d" + ledCount.toString();
+                                return false;
                             }
                         }
                     }
-                });
-                // Over here, we need to know if the wire is connected to a logic gate and a power rail, chained together
-                // Finally we need to check the or gate
-                $.each(this._orGate, function (position, orGate) {
-                    var wirePositions =orGate.GetPinLocation();
-                    // allow direct pin connections to GND and 3v3
-                    
-                    for(let i = 0; i < wirePositions.length; i++){
-                        if(wire._start.x === wirePositions[i] && wire._start.y > 150 && wire._start.y < 400){
-                            //wire._start is a logic wire
-                            if(finder.IsPower(wire._end)){
-                                if(wire._start.y > orGate._topPosition){
-                                    // bottom half
-                                    orGate.SetValue(i+1, true);
-                                    orGate._protocol[i] = "LT";
-                                }
-                                else{
-                                    //top half
-                                    orGate.SetValue(14-i, true);
-                                    orGate._protocol[13-i] = "LT";
-                                }
-                            }
-                            else if(finder.IsGround(wire._end)){
-                                if(wire._start.y > orGate._topPosition){
-                                    // bottom half
-                                    orGate.SetValue(i+1, false);
-                                    orGate._protocol[i] = "LF";
-                                }
-                                else{
-                                    //top half
-                                    orGate.SetValue(14-i, false);
-                                    orGate._protocol[13-i] = "LF";
-                                }
-                            }
+                }
+                ledCount++;
+            });
+
+            // check output:
+            // - check if output of switch, or Power or GND, or output of a logic gate, or output of GPIO
+            if(finder.IsPower(point1)){
+                point1IsOutput = true;
+                point1Code = "LT";
+            }
+            else if(finder.IsGround(point1)){
+                point1IsOutput = true;
+                point1Code = "LF";
+            }
+            var isVirtualOutput = OUTPUTS_BY_PIN[gpioPin] !== undefined;
+            if(isVirtualOutput){
+                gpioPin = Object.keys(OUTPUTS_BY_PIN).indexOf(gpioPin.toString());
+                console.log(gpioPin);
+                point1IsOutput = true;
+                if(gpioPin < 10){
+                    // i.e. g07 or g09. Add a '0' string to have 2 numbers after g
+                    point1Code = "g" + "0" + gpioPin.toString();
+                }
+                else{
+                    // i.e. g17 or g31. Will always have 2 numbers after g
+                    point1Code = "g" + gpioPin.toString();
+                }
+            }
+            // check if connected to a switch
+            var i_p = 0;
+            $.each(this._outputs, function(pos, eachSwitch){
+                var wireX = eachSwitch.GetWireX();
+                var wireYBase = eachSwitch.GetWireYBase();
+                if(point1.y >= wireYBase && point1.y <= (wireYBase + 4*VISIR_SQUARE_SIZE)){
+                    if(point1.x === wireX){
+                        // switch found
+                        point1IsOutput = true;
+                        if(eachSwitch._value){
+                            point1Code = "ST";
+                            // point1Code = "SW" + i_p.toString();
                         }
-                        else if(wire._end.x === wirePositions[i] && wire._end.y > 150 && wire._end.y < 400){
-                            //wire._end is a logic wire
-                            if(finder.IsPower(wire._start)){
-                                if(wire._end.y > orGate._topPosition){
-                                    // bottom half
-                                    orGate.SetValue(i+1, true);
-                                    orGate._protocol[i] = "LT";
-                                }
-                                else{
-                                    //top half
-                                    orGate.SetValue(14-i, true);
-                                    orGate._protocol[13-i] = "LT";
-                                }
-                            }
-                            else if(finder.IsGround(wire._start)){
-                                if(wire._end.y > orGate._topPosition){
-                                    // bottom half
-                                    orGate.SetValue(i+1, false);
-                                    orGate._protocol[i] = "LF";
-                                }
-                                else{
-                                    //top half
-                                    orGate.SetValue(14-i, false);
-                                    orGate._protocol[13-i] = "LF";
-                                }
-                            }
+                        else{
+                            point1Code = "SF";
+                            // point1Code = "SW" + i_p.toString();
                         }
+
+                        if(eachSwitch._valueChanged){
+                            changedSwitches.push("SW"+i_p.toString());
+                            eachSwitch._valueChanged = false;
+                        }
+                        return false;
                     }
-                });
-                /******************************************************** */
-                //Check not gate with others to see if there are multiple logic gates chained together
-                // First, sweep through the not gate
-                $.each(this._notGate, function(position, gate){
-
-                    // obtain the pin locations for the not gate
-                    var wirePositions = gate.GetPinLocation();
-                    // sweep through each pin position
-                    for(var i = 0; i < wirePositions.length; i++){
-                        if(wire._start.x === wirePositions[i]){
-                            //wire._start is a logic wire
-                            $.each(and_gates, function(position, andGate){
-                                var wirePositionsAnd = andGate.GetPinLocation();
-                                // check to see if the output pin is the same as the input pin for an and gate
-                                for(var j = 0; j < wirePositionsAnd.length; j++){
-                                    if(wire._end.x === wirePositionsAnd[j]){
-                                        if(wire._start.y > gate._topPosition){
-                                            // bottom half
-                                            if(wire._end.y > andGate._topPosition){
-                                                gate.SetValue(i+1, andGate._array_value[j]);
-                                                gate._protocol[i] = "b" + bNum.toString();
-                                                andGate._protocol[j] = "b" + bNum.toString();
-                                                bNum += 1;
-
-                                            }
-                                            else{
-                                                gate.SetValue(i+1, andGate._array_value[13 - j]);
-                                                gate._protocol[i] = "b" + bNum.toString();
-                                                andGate._protocol[13-j] = "b" + bNum.toString();
-                                                bNum += 1;
-
-                                            }
-                                            
-                                        }
-                                        else{
-                                            //top half
-                                            if(wire._end.y > andGate._topPosition){
-                                                gate.SetValue(14-i, andGate._array_value[j]);
-                                                gate._protocol[13-i] = "b" + bNum.toString();
-                                                andGate._protocol[j] = "b" + bNum.toString();
-                                                bNum += 1;
-                                            }
-                                            else{
-                                                gate.SetValue(14-i, andGate._array_value[13 - j]);
-                                                gate._protocol[13-i] = "b" + bNum.toString();
-                                                andGate._protocol[13-j] = "b" + bNum.toString();
-                                                bNum += 1;
-                                            }
-                                            
-                                        }
-                                    }
-                                    
-                                }
-                            });
-                            // Next, we need to check if the not gate is connected with an or gate
-                            $.each(or_gates, function(position, orGate){
-                                var wirePositionsOr = orGate.GetPinLocation();
-                                // check to see if the output pin is the same as the input pin for an or gate
-                                for(var j = 0; j < wirePositionsOr.length; j++){
-                                    if(wire._end.x === wirePositionsOr[j]){
-                                        if(wire._start.y > gate._topPosition){
-                                            // bottom half
-                                            if(wire._end.y > orGate._topPosition){
-                                                gate.SetValue(i+1, orGate._array_value[j]);
-                                                // gate.SetValue(i+1, andGate._array_value[j]);
-                                                gate._protocol[i] = "b" + bNum.toString();
-                                                orGate._protocol[j] = "b" + bNum.toString();
-                                                bNum += 1;
-
-                                            }
-                                            else{
-                                                gate.SetValue(i+1, orGate._array_value[13 - j]);
-                                                // gate.SetValue(i+1, andGate._array_value[j]);
-                                                gate._protocol[i] = "b" + bNum.toString();
-                                                orGate._protocol[13-j] = "b" + bNum.toString();
-                                                bNum += 1;
-
-                                            }
-                                        }
-                                        else{
-                                            //top half
-                                            if(wire._end.y > orGate._topPosition){
-                                                gate.SetValue(14-i, orGate._array_value[j]);
-                                                gate._protocol[13-i] = "b" + bNum.toString();
-                                                orGate._protocol[j] = "b" + bNum.toString();
-                                                bNum += 1;
-
-                                            }
-                                            else{
-                                                gate.SetValue(14-i, orGate._array_value[13 - j]);
-                                                gate._protocol[13-i] = "b" + bNum.toString();
-                                                orGate._protocol[13-j] = "b" + bNum.toString();
-                                                bNum += 1;
-
-                                            }
-                                        }
-                                    }
-                                    
-                                }
-                            });
-                        }
-                        // Now, we know that it the other end of the wire that is connected to the input gate
-                        else if(wire._end.x === wirePositions[i]){
-                            // Sweep through an and gate to see if it is connected with a not gate
-                            $.each(and_gates, function(position, andGate){
-                                var wirePositionsAnd = andGate.GetPinLocation();
-                                // sweep through each location of the pins, check if they match
-                                for(var j = 0; j < wirePositionsAnd.length; j++){
-                                    if(wire._start.x === wirePositionsAnd[j]){
-                                        if(wire._end.y > gate._topPosition){
-                                            // bottom half
-                                            if(wire._start.y > andGate._topPosition){
-                                                gate.SetValue(i+1, andGate._array_value[j]);
-                                                gate._protocol[i] = "b" + bNum.toString();
-                                                andGate._protocol[j] = "b" + bNum.toString();
-                                                bNum += 1;
-
-                                            }
-                                            else{
-                                                gate.SetValue(i+1, andGate._array_value[13 - j]);
-                                                gate._protocol[i] = "b" + bNum.toString();
-                                                andGate._protocol[13-j] = "b" + bNum.toString();
-                                                bNum += 1;
-                                            }
-                                            
-                                        }
-                                        else{
-                                            //top half
-                                            if(wire._start.y > andGate._topPosition){
-                                                gate.SetValue(14-i, andGate._array_value[j]);
-                                                gate._protocol[13-i] = "b" + bNum.toString();
-                                                andGate._protocol[j] = "b" + bNum.toString();
-                                                bNum += 1;
-
-                                            }
-                                            else{
-                                                gate.SetValue(14-i, andGate._array_value[13 - j]);
-                                                gate._protocol[13-i] = "b" + bNum.toString();
-                                                andGate._protocol[13-j] = "b" + bNum.toString();
-                                                bNum += 1;
-                                            }
-                                            
-                                        }
-                                    }
-                                    
-                                }
-                            });
-                            $.each(or_gates, function(position, orGate){
-                                // Sweep through an and gate to see if it is connected with a not gate
-                                var wirePositionsOr = orGate.GetPinLocation();
-                                for(var j = 0; j < wirePositionsOr.length; j++){
-                                    // sweep through each location of the pins, check if they match
-                                    if(wire._start.x === wirePositionsOr[j]){
-                                        if(wire._end.y > gate._topPosition){
-                                            // bottom half
-                                            if(wire._start.y > orGate._topPosition){
-                                                gate.SetValue(i+1, orGate._array_value[j]);
-                                                gate._protocol[i] = "b" + bNum.toString();
-                                                orGate._protocol[j] = "b" + bNum.toString();
-                                                bNum += 1;
-
-                                            }
-                                            else{
-                                                gate.SetValue(i+1, orGate._array_value[13 - j]);
-                                                gate._protocol[i] = "b" + bNum.toString();
-                                                orGate._protocol[13-j] = "b" + bNum.toString();
-                                                bNum += 1;
-                                            }
-                                            
-                                        }
-                                        else{
-                                            //top half
-                                            if(wire._start.y > orGate._topPosition){
-                                                gate.SetValue(14-i, orGate._array_value[j]);
-                                                gate._protocol[13-i] = "b" + bNum.toString();
-                                                orGate._protocol[j] = "b" + bNum.toString();
-                                                bNum += 1;
-
-                                            }
-                                            else{
-                                                gate.SetValue(14-i, orGate._array_value[13 - j]);
-                                                gate._protocol[13-i] = "b" + bNum.toString();
-                                                orGate._protocol[13-j] = "b" + bNum.toString();
-                                                bNum += 1;
-                                            }
-                                            
-                                        }
-                                    }
-                                    
-                                }
-                            });
-                        }
-                    
-                    }
-                });
+                }
+                i_p++;
+            });
+            var notPinOutput = [false, -1]; // if in gate, gate num
+            componentCounterLocal = 0;
+            $.each(_notGate, function(pos, gate){
+                notPinOutput = gate.CheckIfOutput(point1);
+                if(notPinOutput[0]){
+                    componentCounterNot1 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            var outputPoint1GateNum = -1;
+            if(notPinOutput[0]){
+                point1IsOutput = true;
+                outputPoint1GateNum = notPinOutput[1];
+                point1Code = "n";
+            }
+            var andPinOutput = [false, -1]; // if in gate, gate num
+            componentCounterLocal = 0;
+            $.each(_andGate, function(pos, gate){
+                andPinOutput = gate.CheckIfOutput(point1);
+                if(andPinOutput[0]){
+                    componentCounterAnd1 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(andPinOutput[0]){
+                point1IsOutput = true;
+                outputPoint1GateNum = andPinOutput[1];
+                point1Code = "a";
+            }
+            var orPinOutput = [false, -1]; // if in gate, gate num
+            componentCounterLocal = 0;
+            $.each(_orGate, function(pos, gate){
+                orPinOutput = gate.CheckIfOutput(point1);
+                if(orPinOutput[0]){
+                    componentCounterOr1 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(orPinOutput[0]){
+                point1IsOutput = true;
+                outputPoint1GateNum = orPinOutput[1];
+                point1Code = "o";
+            }
+            //***newly added */
+            var xorPinOutput = [false, -1]; // if in gate, gate num
+            componentCounterLocal = 0;
+            $.each(_xorGate, function(pos, gate){
+                xorPinOutput = gate.CheckIfOutput(point1);
+                if(xorPinOutput[0]){
+                    componentCounterXor1 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(xorPinOutput[0]){
+                point1IsOutput = true;
+                outputPoint1GateNum = xorPinOutput[1];
+                point1Code = "x";
+            }
+            // ======================= Marks the end of Point 1 =================================
+            // ======================= Marks the start of Point 2 ===============================
+            // check if point2 is a virtual output or a virtual input
+            var point2IsOutput = null;
+            var point2Code = "";
+            // check input:
+            // - check if output of FPGA, inputs to logic gate
+            gpioPin = finder.FindGpioPin(point2);
+            isVirtualInput = INPUTS_BY_PIN[gpioPin] !== undefined;
+            if(isVirtualInput){
+                gpioPin = Object.keys(INPUTS_BY_PIN).indexOf(gpioPin.toString());
+                console.log(gpioPin);
+                point2IsOutput = false;
+                if(gpioPin < 10){
+                    // i.e. g07 or g09. Add a '0' string to have 2 numbers after g
+                    point2Code = "g" + "0" + gpioPin.toString();
+                }
+                else{
+                    // i.e. g17 or g31. Will always have 2 numbers after g
+                    point2Code = "g" + gpioPin.toString();
+                }
                 
-                /******************************************************** */
+            }
+            componentCounterLocal = 0;
+            $.each(_notGate, function(pos, gate){
+                notPinInput = gate.CheckIfInput(point2);
+                if(notPinInput[0]){
+                    componentCounterNot2 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            var inputPoint2GateNum = -1;
+            var inputPoint2InputNum = 1;
+            if(notPinInput[0]){
+                point2IsOutput = false;
+                inputPoint2GateNum = notPinInput[1];
+                point2Code = "n";
+            }
+            componentCounterLocal = 0;
+            $.each(_andGate, function(pos, gate){
+                andPinInput = gate.CheckIfInput(point2);
+                if(andPinInput[0]){
+                    componentCounterAnd2 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(andPinInput[0]){
+                point2IsOutput = false;
+                inputPoint2GateNum = andPinInput[1];
+                inputPoint2InputNum = andPinInput[2];
+                point2Code = "a";
+            }
+            componentCounterLocal = 0;
+            $.each(_orGate, function(pos, gate){
+                orPinInput = gate.CheckIfInput(point2);
+                if(orPinInput[0]){
+                    componentCounterOr2 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(orPinInput[0]){
+                point2IsOutput = false;
+                inputPoint2GateNum = orPinInput[1];
+                inputPoint2InputNum = orPinInput[2];
+                point2Code = "o";
+            }
+            //***newly added */
+            componentCounterLocal = 0;
+            $.each(_xorGate, function(pos, gate){
+                xorPinInput = gate.CheckIfInput(point2);
+                if(xorPinInput[0]){
+                    componentCounterXor2 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(xorPinInput[0]){
+                point2IsOutput = false;
+                inputPoint2GateNum = xorPinInput[1];
+                inputPoint2InputNum = xorPinInput[2];
+                point2Code = "x";
+            }
+            ledCount = 0;
+            $.each(_leds, function(pos, led){
+                var wireX = led.GetWireX();
+                var wireY = led.GetWireYBase();
+                // check if led is on top half or bottom half
+                if(point2.x === wireX){
+                    if(led._onTopHalf){
+                        if((point2.y - wireY) <= 4*VISIR_SQUARE_SIZE){
+                            if((led._vertical && (point2.y - wireY) >= 0) || (!led._vertical && point2.y <= 271 && point2.y > 271 - 5*VISIR_SQUARE_SIZE)){
+                                //success
+                                point2IsOutput = false;
+                                point2Code = "d" + ledCount.toString();
+                                return false;
+                            }
+                        }
+                    }
+                    else{
+                        if((wireY - point2.y) <= 4*VISIR_SQUARE_SIZE){
+                            if((led._vertical && (wireY - point2.y) >= 0) || (!led._vertical && point2.y >= 300 && point2.y < 300 + 5*VISIR_SQUARE_SIZE)){
+                                //success
+                                point2IsOutput = false;
+                                point2Code = "d" + ledCount.toString();
+                                return false;
+                            }
+                        }
+                    }
+                }
+                ledCount++;
+            });
 
-            } else if (gpioPin1 != null && gpioPin2 != null ) {
+            // check output:
+            // - check if output of switch, or Power or GND, or output of a logic gate, or output of GPIO
+            if(finder.IsPower(point2)){
+                point2IsOutput = true;
+                point2Code = "LT";
+            }
+            else if(finder.IsGround(point2)){
+                point2IsOutput = true;
+                point2Code = "LF";
+            }
+            isVirtualOutput = OUTPUTS_BY_PIN[gpioPin] !== undefined;
+            if(isVirtualOutput){
+                gpioPin = Object.keys(OUTPUTS_BY_PIN).indexOf(gpioPin.toString());
+                console.log(gpioPin);
+                point2IsOutput = true;
+                if(gpioPin < 10){
+                    // i.e. g07 or g09. Add a '0' string to have 2 numbers after g
+                    point2Code = "g" + "0" + gpioPin.toString();
+                }
+                else{
+                    // i.e. g17 or g31. Will always have 2 numbers after g
+                    point2Code = "g" + gpioPin.toString();
+                }
+            }
+            // check if connected to a switch
+            i_p = 0;
+            $.each(this._outputs, function(pos, eachSwitch){
+                var wireX = eachSwitch.GetWireX();
+                var wireYBase = eachSwitch.GetWireYBase();
+                if(point2.y >= wireYBase && point2.y <= (wireYBase + 4*VISIR_SQUARE_SIZE)){
+                    if(point2.x === wireX){
+                        // switch found
+                        point2IsOutput = true;
+                        if(eachSwitch._value){
+                            point2Code = "ST";
+                            // point2Code = "SW" + i_p.toString();
+                        }
+                        else{
+                            point2Code = "SF";
+                            // point2Code = "SW" + i_p.toString();
+                        }
 
-                this._errors.push(3); //indicates short on GPIO
-            } else if (gpioPin1 != null) {
-                gpioPin = gpioPin1;
-                otherPoint = wire._end;
-                this._protocol.push("G" + gpioPin.toString());
-            } else {
-                gpioPin = gpioPin2;
-                otherPoint = wire._start;
-                this._protocol.push("G" + gpioPin.toString());
+                        if(eachSwitch._valueChanged){
+                            changedSwitches.push("SW"+i_p.toString());
+                            eachSwitch._valueChanged = false;
+                        }
+                        return false;
+                    }
+                }
+            });
+            componentCounterLocal = 0;
+            $.each(_notGate, function(pos, gate){
+                notPinOutput = gate.CheckIfOutput(point2);
+                if(notPinOutput[0]){
+                    componentCounterNot2 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            var outputPoint2GateNum = -1;
+            if(notPinOutput[0]){
+                point2IsOutput = true;
+                outputPoint2GateNum = notPinOutput[1];
+                point2Code = "n";
+            }
+            componentCounterLocal = 0;
+            $.each(_andGate, function(pos, gate){
+                andPinOutput = gate.CheckIfOutput(point2);
+                if(andPinOutput[0]){
+                    componentCounterAnd2 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(andPinOutput[0]){
+                point2IsOutput = true;
+                outputPoint2GateNum = andPinOutput[1];
+                point2Code = "a";
+            }
+            componentCounterLocal = 0;
+            $.each(_orGate, function(pos, gate){
+                orPinOutput = gate.CheckIfOutput(point2);
+                if(orPinOutput[0]){
+                    componentCounterOr2 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(orPinOutput[0]){
+                point2IsOutput = true;
+                outputPoint2GateNum = orPinOutput[1];
+                point2Code = "o";
+            }
+            //***newly added */
+            componentCounterLocal = 0;
+            $.each(_xorGate, function(pos, gate){
+                xorPinOutput = gate.CheckIfOutput(point2);
+                if(xorPinOutput[0]){
+                    componentCounterXor2 = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(xorPinOutput[0]){
+                point2IsOutput = true;
+                outputPoint2GateNum = xorPinOutput[1];
+                point2Code = "x";
             }
 
-            var isOutput = OUTPUTS_BY_PIN[gpioPin] !== undefined;
-            var isInput = INPUTS_BY_PIN[gpioPin] !== undefined;
-
-            // check to see if the correct output GPIO on the breadboard is being used, report error otherwise
-            if (!isOutput && !isInput) {
-                this.ReportError('gpio-not-supported');
-                errors = true;
+            // Check to see if gates are properly powered
+            // not gate
+            componentCounterLocal = 0;
+            var componentCounterLED = 0;
+            var componentCounterSwitch = 0;
+            var componentCounterNot = 0;
+            var componentCounterAnd = 0;
+            var componentCounterOr = 0;
+            var componentCounterXor = 0; //***newly added */
+            var notPowered = null;
+            // check point 1
+            var ledGrounded = [null, null];
+            $.each(this._leds, function(pos, led){
+                ledGrounded = led.checkIfGround(point1);
+                if(ledGrounded[0] != null){
+                    componentCounterLED = componentCounterLocal;
+                    if(ledGrounded[1] == true){
+                        return false
+                    }
+                    else{
+                        if(ledGrounded[0] === false && ledGrounded[1] === false){
+                            ledStatus[componentCounterLED].connectedToGround = true;
+                        }
+                    }
+                }
+                componentCounterLocal += 1;
+            });
+            if(ledGrounded[0] === false && ledGrounded[1] === true && finder.IsGround(point2)){
+                ledStatus[componentCounterLED].connectedToGround = true;
+                continue;
+            }
+            // check point 2
+            ledGrounded = [null, null];
+            componentCounterLocal = 0;
+            $.each(this._leds, function(pos, led){
+                ledGrounded = led.checkIfGround(point2);
+                if(ledGrounded[0] != null){
+                    componentCounterLED = componentCounterLocal;
+                    if(ledGrounded[1] == true){
+                        return false
+                    }
+                    else{
+                        if(ledGrounded[0] === false && ledGrounded[1] === false){
+                            ledStatus[componentCounterLED].connectedToGround = true;
+                        }
+                    }
+                }
+                componentCounterLocal += 1;
+            });
+            if(ledGrounded[0] === false && ledGrounded[1] && finder.IsGround(point1)){
+                ledStatus[componentCounterLED].connectedToGround = true;
                 continue;
             }
 
-            // This means that there is an input to the breadbaord (an output from the microcontroller)
-            if (isInput) {
-                // It can only go to the LED's
-                var found = false;
-                $.each(this._inputs, function (position, input) {
-                    var wireX = input.GetWireX();
-                    var wireYBase = input.GetWireYBase();
-
-                    // Check to see with orientation the wire is in
-                    if (wireX == otherPoint.x) {
-                        if (otherPoint.y >= wireYBase && otherPoint.y <= (wireYBase + 4*VISIR_SQUARE_SIZE)) {
-                            var value = self._inputState[gpioPin];
-                            input.SetValue(value);
-                            processedInputs.push(input);
-                            found = true;
-                        }
-                    }
-                });
-
-                // This means that there is no LED on the breadbaord, indicate an error
-                if (!found) {
-                    this.ReportError("input-not-led");
-                    errors = true;
-                    continue;
+            var switchPowered = null;
+            componentCounterLocal = 0;
+            $.each(this._outputs, function(pos, sw){
+                switchPowered = sw.checkIfPowered(point1);
+                if(switchPowered != null){
+                    componentCounterSwitch = componentCounterLocal;
+                    return false;
                 }
-            } else {
-                // It can only go to ground, voltage or switches
-                var isPower = finder.IsPower(otherPoint);
-                var isGround = finder.IsGround(otherPoint);
-                if (isPower || isGround) {
-                    // Check to see if it is a power
-                    if (isPower) {
-                        this._ChangeOutput(gpioPin, true);
-                    } else {
-                        this._ChangeOutput(gpioPin, false);
+                componentCounterLocal += 1;
+            });
+            if(switchPowered === true && finder.IsPower(point2)){
+                switchStatus[componentCounterSwitch].connectedToPower = true;
+                continue;
+            }
+            else if(switchPowered === false && finder.IsGround(point2)){
+                switchStatus[componentCounterSwitch].connectedToGround = true;
+                continue;
+            }
+            // check point 2
+            switchPowered = null;
+            componentCounterLocal = 0;
+            $.each(this._outputs, function(pos, sw){
+                switchPowered = sw.checkIfPowered(point2);
+                if(switchPowered != null){
+                    componentCounterSwitch = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(switchPowered === true && finder.IsPower(point1)){
+                switchStatus[componentCounterSwitch].connectedToPower = true;
+                continue;
+            }
+            else if(switchPowered === false && finder.IsGround(point1)){
+                switchStatus[componentCounterSwitch].connectedToGround = true;
+                continue;
+            }
+
+            componentCounterLocal = 0;
+            $.each(_notGate, function(pos, gate){
+                notPowered = gate.CheckIfPower(point1);
+                if(notPowered != null){
+                    componentCounterNot = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(notPowered === true && finder.IsPower(point2)){
+                componentStatus.notStatus[componentCounterNot].connectedToPower = true;
+                continue;
+            }
+            else if(notPowered === false && finder.IsGround(point2)){
+                componentStatus.notStatus[componentCounterNot].connectedToGround = true;
+                continue;
+            }
+            // check point 2
+            notPowered = null;
+            componentCounterLocal = 0;
+            $.each(_notGate, function(pos, gate){
+                notPowered = gate.CheckIfPower(point2);
+                if(notPowered != null){
+                    componentCounterNot = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(notPowered === true && finder.IsPower(point1)){
+                componentStatus.notStatus[componentCounterNot].connectedToPower = true;
+                continue;
+            }
+            else if(notPowered === false && finder.IsGround(point1)){
+                componentStatus.notStatus[componentCounterNot].connectedToGround = true;
+                continue;
+            }
+
+            // and gate
+            // point 1 is on gate
+            var andPowered = null;
+            componentCounterLocal = 0;
+            $.each(_andGate, function(pos, gate){
+                andPowered = gate.CheckIfPower(point1);
+                if(andPowered != null){
+                    componentCounterAnd = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(andPowered === true && finder.IsPower(point2)){
+                componentStatus.andStatus[componentCounterAnd].connectedToPower = true;
+                continue;
+            }
+            else if(andPowered === false && finder.IsGround(point2)){
+                componentStatus.andStatus[componentCounterAnd].connectedToGround = true;
+                continue;
+            }
+            // point 2 is on gate
+            andPowered = null;
+            componentCounterLocal = 0;
+            $.each(_andGate, function(pos, gate){
+                andPowered = gate.CheckIfPower(point2);
+                if(andPowered != null){
+                    componentCounterAnd = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(andPowered === true && finder.IsPower(point1)){
+                componentStatus.andStatus[componentCounterAnd].connectedToPower = true;
+                continue;
+            }
+            else if(andPowered === false && finder.IsGround(point1)){
+                componentStatus.andStatus[componentCounterAnd].connectedToGround = true;
+                continue;
+            }
+
+            // or gate
+            var orPowered = null;
+            componentCounterLocal = 0;
+            $.each(_orGate, function(pos, gate){
+                orPowered = gate.CheckIfPower(point1);
+                if(orPowered != null){
+                    componentCounterOr = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(orPowered === true && finder.IsPower(point2)){
+                componentStatus.orStatus[componentCounterOr].connectedToPower = true;
+                continue;
+            }
+            else if(orPowered === false && finder.IsGround(point2)){
+                componentStatus.orStatus[componentCounterOr].connectedToGround = true;
+                continue;
+            }
+            // point 2 is on gate
+            orPowered = null;
+            componentCounterLocal = 0;
+            $.each(_orGate, function(pos, gate){
+                orPowered = gate.CheckIfPower(point2);
+                if(orPowered != null){
+                    componentCounterOr = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(orPowered === true && finder.IsPower(point1)){
+                componentStatus.orStatus[componentCounterOr].connectedToPower = true;
+                continue;
+            }
+            else if(orPowered === false && finder.IsGround(point1)){
+                componentStatus.orStatus[componentCounterOr].connectedToGround = true;
+                continue;
+            }
+
+            //***newly added */
+            // xor gate
+            var xorPowered = null;
+            componentCounterLocal = 0;
+            $.each(_xorGate, function(pos, gate){
+                xorPowered = gate.CheckIfPower(point1);
+                if(xorPowered != null){
+                    componentCounterXor = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(xorPowered === true && finder.IsPower(point2)){
+                componentStatus.xorStatus[componentCounterXor].connectedToPower = true;
+                continue;
+            }
+            else if(xorPowered === false && finder.IsGround(point2)){
+                componentStatus.xorStatus[componentCounterXor].connectedToGround = true;
+                continue;
+            }
+            // point 2 is on gate
+            xorPowered = null;
+            componentCounterLocal = 0;
+            $.each(_xorGate, function(pos, gate){
+                xorPowered = gate.CheckIfPower(point2);
+                if(xorPowered != null){
+                    componentCounterXor = componentCounterLocal;
+                    return false;
+                }
+                componentCounterLocal += 1;
+            });
+            if(xorPowered === true && finder.IsPower(point1)){
+                componentStatus.xorStatus[componentCounterXor].connectedToPower = true;
+                continue;
+            }
+            else if(xorPowered === false && finder.IsGround(point1)){
+                componentStatus.xorStatus[componentCounterXor].connectedToGround = true;
+                continue;
+            }
+
+            var inputPoint;
+            var inputPointPinNum;
+            var outputPoint;
+            var outputPointPinNum;
+            var newPoint1Code;
+            var newPoint2Code;
+            var point1InputNum;
+            var point2InputNum;
+            if(point1IsOutput == null || point2IsOutput == null){
+                errors.push(ERROR_MESSAGES["null"]);
+                console.log(ERROR_MESSAGES["null"]);
+            }
+
+            if(!point1IsOutput && point2IsOutput){
+                // virtual input connection to virtual output -> VALID
+                inputPoint = point1;
+                inputPointPinNum = inputPoint1GateNum;
+                newPoint1Code = point1Code;
+                outputPoint = point2;
+                outputPointPinNum = outputPoint2GateNum;
+                newPoint2Code = point2Code;
+                point1InputNum = inputPoint1InputNum;
+                point2InputNum = inputPoint2InputNum;
+            }
+            else if(point1IsOutput && !point2IsOutput){
+                // virtual input connection to virtual output -> VALID
+                inputPoint = point2;
+                inputPointPinNum = inputPoint2GateNum;
+                newPoint1Code = point2Code;
+                outputPoint = point1;
+                outputPointPinNum = outputPoint1GateNum;
+                newPoint2Code = point1Code;
+                point1InputNum = inputPoint2InputNum;
+                point2InputNum = inputPoint1InputNum;
+                var tempNot = componentCounterNot1;
+                var tempAnd = componentCounterAnd1;
+                var tempOr = componentCounterOr1;
+                var tempXor = componentCounterXor1; //***newly added */
+                componentCounterNot1 = componentCounterNot2;
+                componentCounterAnd1 = componentCounterAnd2;
+                componentCounterOr1 = componentCounterOr2;
+                componentCounterXor1 = componentCounterXor2; //***newly added */
+                componentCounterNot2 = tempNot;
+                componentCounterAnd2 = tempAnd;
+                componentCounterOr2 = tempOr;
+                componentCounterXor2 = tempXor; //***newly added */
+            }
+            else if(!point1IsOutput && !point2IsOutput){
+                // both are inputs. For now, we will return error
+                errors.push(ERROR_MESSAGES["inputs"]);
+                console.log(ERROR_MESSAGES["inputs"]);
+            }
+            else{
+                // both are outputs. Also error
+                errors.push(ERROR_MESSAGES["outputs"]);
+                console.log(ERROR_MESSAGES["outputs"]);
+            }
+
+            if(errors.length > 0){
+                return errors[0];
+            }
+            // From this point on, we know that circuit is now within the valid state
+
+            // point1Code: g17, T, F, n, ST
+            // inputPointPinNum = gate number (only if point1Code is n)
+            // outputPointPinNum = gate number (only if point1Code is n)
+            var leftOversMessage = "";
+            // Check if needs buffer
+            var needsBuffer = helper.NeedBuffer(newPoint1Code, newPoint2Code);
+            if(needsBuffer){
+                var whatGate = helper.ParseGate(newPoint1Code, inputPointPinNum);
+                if(whatGate[0] != null){
+                    if(whatGate[0] == "not"){
+                        componentStatus.notStatus[componentCounterNot1].connectInput("b"+bufferCounter, whatGate[1]);
                     }
-                    processedOutputGpios.push(gpioPin);
-                } else if(gpioPin1 != null || gpioPin2 != null){
-                    // if not ground or power... check if its a logic gate
-                    var found = false;
-                    $.each(this._outputs, function (position, output) {
-                        var wireX = output.GetWireX();
-                        var wireYBase = output.GetWireYBase();
-
-                        if (wireX == otherPoint.x) {
-                            if (otherPoint.y >= wireYBase && otherPoint.y <= (wireYBase + 4*VISIR_SQUARE_SIZE)) {
-                                self._ChangeOutput(gpioPin, output.GetValue());
-                                processedOutputGpios.push(gpioPin);
-                                found = true;
-                            }
-                        }
-
-                    });
-                    // No input found, this means that the GPIO is directly tied with a logic gate
-                    if (!found) {
-
-                        // Find the orientation of the wire
-                        if(wire._start.y > 60){
-                            var cur_wire = wire._start;
-                        }
-                        else{
-                            var cur_wire = wire._end;
-                        }
-                        // First, we need to check the GPIO connection to a not gate
-                        $.each(this._notGate, function (position, gate) {
-                            // Sweep through the wire locations on the not gate
-                            var wirePositions = gate.GetPinLocation();
-                            for(var i = 0; i < wirePositions.length; i++){
-                                // CHeck to see if the GPIO is connected to that not gate
-                                if(cur_wire.x === wirePositions[i]){
-                                    if(cur_wire.y > gate._topPosition){
-                                        // bottom half
-                                        self._ChangeOutput(gpioPin, gate.GetValue(i));
-                                        processedOutputGpios.push(gpioPin);
-                                        gate._protocol[i] = "g" + gpioPin.toString();
-                                    }
-                                    else{
-                                        //top half
-                                        self._ChangeOutput(gpioPin, gate.GetValue(13-i));
-                                        processedOutputGpios.push(gpioPin);
-                                        gate._protocol[13-i] = "g" + gpioPin.toString();
-                                    }
-                                }
-                            }
-                            /****************************************** */
-    
-                        });
-                        // Next, check to see if the GPIO connection is to an and gate
-                        $.each(this._andGate, function (position, gate) {
-                            // sweep through pin locations of the and gate
-                            var wirePositions = gate.GetPinLocation();
-                            for(var i = 0; i < wirePositions.length; i++){
-
-                                if(cur_wire.x === wirePositions[i]){
-                                    if(cur_wire.y > gate._topPosition){
-                                        // bottom half
-                                        self._ChangeOutput(gpioPin, gate.GetValue(i));
-                                        processedOutputGpios.push(gpioPin);
-                                        gate._protocol[i] = "g" + gpioPin.toString();
-                                        // if(i != andLProcessed){
-                                        //     gate._protocol[i] = "G" + gpioPin.toString();
-
-                                        // }
-                                    }
-                                    else{
-                                        //top half
-                                        self._ChangeOutput(gpioPin, gate.GetValue(13-i));
-                                        processedOutputGpios.push(gpioPin);
-                                        gate._protocol[13-i] = "g" + gpioPin.toString();
-                                        // if((13-i) != andLProcessed){
-                                        //     gate._protocol[13-i] = "G" + gpioPin.toString();
-
-                                        // }
-                                    }
-                                }
-                            }
-                            /****************************************** */
-    
-                        });
-                        // FInally, check to see if the GPIO connection is to the or gate
-                        $.each(this._orGate, function (position, gate) {
-                            // Sweep through available or gate connections for the pins
-                            var wirePositions = gate.GetPinLocation();
-                            for(var i = 0; i < wirePositions.length; i++){
-
-                                if(cur_wire.x === wirePositions[i]){
-                                    if(cur_wire.y > gate._topPosition){
-                                        // bottom half
-                                        self._ChangeOutput(gpioPin, gate.GetValue(i));
-                                        processedOutputGpios.push(gpioPin);
-                                        gate._protocol[i] = "g" + gpioPin.toString();
-                                    }
-                                    else{
-                                        //top half
-                                        self._ChangeOutput(gpioPin, gate.GetValue(13-i));
-                                        processedOutputGpios.push(gpioPin);
-                                        gate._protocol[13-i] = "g" + gpioPin.toString();
-                                    }
-                                }
-                            }
-                            /****************************************** */
-    
-                        });
-
+                    else if(whatGate[0] == "and"){
+                        componentStatus.andStatus[componentCounterAnd1].connectInput("b"+bufferCounter, whatGate[1], point1InputNum);
+                        
+                    }
+                    else if(whatGate[0] == "or"){
+                        componentStatus.orStatus[componentCounterOr1].connectInput("b"+bufferCounter, whatGate[1], point1InputNum);
+                        
+                    }
+                    //***newly added */
+                    else if(whatGate[0] == "xor"){
+                        componentStatus.xorStatus[componentCounterXor1].connectInput("b"+bufferCounter, whatGate[1], point1InputNum);
+                        
                     }
                 }
+                whatGate = helper.ParseGate(newPoint2Code, outputPointPinNum);
+                if(whatGate[0] != null){
+                    if(whatGate[0] == "not"){
+                        componentStatus.notStatus[componentCounterNot2].connectOutput("b"+bufferCounter, whatGate[1]);
+                    }
+                    else if(whatGate[0] == "and"){
+                        componentStatus.andStatus[componentCounterAnd2].connectOutput("b"+bufferCounter, whatGate[1], point1InputNum);
+                        
+                    }
+                    else if(whatGate[0] == "or"){
+                        componentStatus.orStatus[componentCounterOr2].connectOutput("b"+bufferCounter, whatGate[1], point1InputNum);
+                        
+                    }
+                    //***newly added */
+                    else if(whatGate[0] == "xor"){
+                        componentStatus.xorStatus[componentCounterXor2].connectOutput("b"+bufferCounter, whatGate[1], point1InputNum);
+                        
+                    }
+                }
+                bufferCounter += 1;
             }
-            previousGpioPins.push(gpioPin);
+            else{
+                // Don't need the buffer
+                var whatGate = helper.ParseGate(newPoint1Code, inputPointPinNum);
+                // console.log(whatGate);
+                if(whatGate[0] != null){
+                    if(whatGate[0] == "not"){
+                        componentStatus.notStatus[componentCounterNot1].connectInput(newPoint2Code, whatGate[1]);
+                    }
+                    else if(whatGate[0] == "and"){
+                        componentStatus.andStatus[componentCounterAnd1].connectInput(newPoint2Code, whatGate[1], point1InputNum);
+                    }
+                    else if(whatGate[0] == "or"){
+                        componentStatus.orStatus[componentCounterOr1].connectInput(newPoint2Code, whatGate[1], point1InputNum);
+                    }
+                    //***newly added */
+                    else if(whatGate[0] == "xor"){
+                        componentStatus.xorStatus[componentCounterXor1].connectInput(newPoint2Code, whatGate[1], point1InputNum);
+                    }
+                    else{
+                        // not a gate
+                        leftOversMessage = "y" + newPoint2Code;
+                    }
+                }
+                
+                whatGate = helper.ParseGate(newPoint2Code, outputPointPinNum);
+                // console.log(whatGate);
+                if(whatGate[0] != null){
+                    if(whatGate[0] == "not"){
+                        componentStatus.notStatus[componentCounterNot2].connectOutput(newPoint1Code, whatGate[1]);
+                    }
+                    else if(whatGate[0] == "and"){
+                        componentStatus.andStatus[componentCounterAnd2].connectOutput(newPoint1Code, whatGate[1]);
+                    }
+                    else if(whatGate[0] == "or"){
+                        componentStatus.orStatus[componentCounterOr2].connectOutput(newPoint1Code, whatGate[1]);
+                    }
+                    //***newly added */
+                    else if(whatGate[0] == "xor"){
+                        componentStatus.xorStatus[componentCounterXor2].connectOutput(newPoint1Code, whatGate[1]);
+                    }
+                    else{
+                        // only append to the end portion if the first part was also called
+                        if(leftOversMessage){
+                            leftOversMessage += newPoint1Code;
+                            nonGateLeftovers.push(leftOversMessage);
+                        }
+                        
+                    }
+
+                }
+            }
+
+        }
+        for(var i = 0; i < switchStatus.length; i++){
+            if(switchStatus[i].connectedToGround == false || switchStatus[i].connectedToPower == false){
+                errors.push(ERROR_MESSAGES["switches"]);
+                console.log(ERROR_MESSAGES["switches"]);
+            }
+        }
+        for(var i = 0; i < ledStatus.length; i++){
+            if(ledStatus[i].connectedToGround == false){
+                errors.push(ERROR_MESSAGES["leds"]);
+                console.log(ERROR_MESSAGES["leds"]);
+            }
         }
 
-        // we found an input pin in the update sweep, thus we need to chagne the state accordingly
-        $.each(this._inputs, function (pos, input) {
-            if (!processedInputs.includes(input)) {
-                input.SetValue(false);
-            }
-        });
-        // we found an output pin in the update sweep, thus we need to change the state accordingly
-        $.each(this._outputState, function (pin, name) {
-            if (!processedOutputGpios.includes(parseInt(pin))) {
-                self._ChangeOutput(pin, false);
-            }
-        });
-
-       // We need to check to see if each not gate is appropriately powered on
-        $.each(this._notGate, function (position, gate) {
-            if(gate._protocol[6] != "LF" || gate._protocol[13] != "LT"){
-                error_array.push(2); //2 means logic ic not properly powered
-            }
-        });
-        // We need to check to see if each and gate is appropriately powered on
-        $.each(this._andGate, function (position, gate) {
-            if(gate._protocol[6] != "LF" || gate._protocol[13] != "LT"){
-                error_array.push(2); //2 means logic ic not properly powered
-            }
-        });
-        // We need to check to see if each or gate is appropriately powered on
-        $.each(this._orGate, function (position, gate) {
-            if(gate._protocol[6] != "LF" || gate._protocol[13] != "LT"){
-                error_array.push(2); //2 means logic ic not properly powered
-            }
-        });
-       
-        // We have no errors!
-        if (!errors) {
-            this.ReportOK();
-        }
-    }
-
-    // Breadboard function to change the output of the GPIO pin
-    Breadboard.prototype._ChangeOutput = function(pinNumber, value) {
-        var pinNumber = parseInt(pinNumber);
-        if (this._outputState[pinNumber] === value) {
-            // No new data, no need to push data
-            return;
-        }
-        var data = {'value': value};
-        var identifier = OUTPUTS_BY_PIN[pinNumber];
-        this._outputState[pinNumber] = value;
-
-        // Potentially used to communicate via post method with flask
-        if (this._enableNetwork) {
-            $.ajax({
-                type: "POST",
-                url: this._endpointBase + 'switches/' + identifier,
-                data: JSON.stringify(data),
-                contentType: "application/json; charset=utf-8",
-                dataType: "json",
-                success: function(data) {
-                    console.log("Changed.");
-                },
-                error: function(errMsg) {
-                    console.log("Failed.");
+        var messages = [];
+        $.each(componentStatus, function(pos, particularComponentStatus){
+            $.each(particularComponentStatus, function(pos, gate){
+                var currentMessages = gate.buildProtocolBlocks(errors);
+                for(var i = 0; i < currentMessages.length; i++){
+                    var currentMessage = currentMessages[i];
+                    if(!messages.includes(currentMessage)){
+                        messages.push(currentMessage);
+                    } 
                 }
             });
+        });
+
+        if(errors.length > 0){
+            return errors[0];
         }
+        
+        var wiringProtocolMessage = messages.join(";");
+        if(nonGateLeftovers){
+            if(wiringProtocolMessage){
+                wiringProtocolMessage += ";";
+            }
+            wiringProtocolMessage += nonGateLeftovers.join(";");
+        }
+        wiringProtocolMessage = wiringProtocolMessage + "\n";
+        // console.log(changedSwitches);
+        // if(changedSwitches.length){
+        //     wiringProtocolMessage += "\t\n" + changedSwitches.join(";");
+        //     wiringProtocolMessage += "\n";
+        // }
+        return wiringProtocolMessage;
+
     }
 
     // The defintion of each component in the function, called in the template.html to initialize the breadboard
@@ -1168,37 +1779,176 @@ RHLab.Widgets.Breadboard = function() {
         this._breadboard = breadboard;
     }
 
+    Breadboard.LEDs = function(identifier, imageBase, leftPosition, topPosition, visirObj) {
+        var self = this;
+        
+        this._objVisir = visirObj;
+        this._leftPosition = leftPosition;
+        this._topPosition = topPosition;
+        // Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1, image2);
+        this._vertical = this._objVisir.translation.rot == "0"
+        this._value = false;
+        this._onTopHalf = false;
+        if(topPosition < 261){
+            this._onTopHalf = true;
+        }
+
+        this._value = false;
+    }
+
+    Breadboard.LEDs.prototype = Object.create(Breadboard.Component.prototype);
+
+    // change the output state of the switch, triggered upon each user click
+    Breadboard.LEDs.prototype._Change = function (ledValue) {
+
+        if(ledValue){
+
+            this._objVisir._$elem.find("img").attr("src", "static/visir/instruments/breadboard/images/butterfly-led-on.png");
+
+            // Make sure that the breadboard recognizes this change by updating the breadboard state
+            if (this._breadboard !== null) {
+                this._breadboard.Update();
+            }
+        }
+        else {
+            this._objVisir._$elem.find("img").attr("src", "static/visir/instruments/breadboard/images/butterfly-led-off.png");
+
+            // Make sure that the breadboard recognizes this change by updating the breadboard state
+            if (this._breadboard !== null) {
+                this._breadboard.Update();
+            }
+
+        }
+
+        this._value = ledValue;
+        
+    };
+
+    Breadboard.LEDs.prototype.setPinLocation = function(leftPosition, topPosition) {
+        this._vertical = this._objVisir.translation.rot == "0";
+        // LED is vertical
+        this._leftPosition = leftPosition;
+        this._topPosition = topPosition;
+        
+        if(this._topPosition < 261){
+            this._onTopHalf = true;
+        }
+        else{
+            this._onTopHalf = false;
+        }
+    }
+
+    // The getter function that obtains the x value coordinates of where the wire should be
+    Breadboard.LEDs.prototype.GetWireX = function () {
+        this.setPinLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
+        if(this._vertical){
+            return this._leftPosition;
+        }
+        // LED is horizontal
+        else {
+            return this._leftPosition - 2*VISIR_SQUARE_SIZE;
+        }
+    }
+
+    // The getter function that obtains the y value coordinates of where the wire should be
+    Breadboard.LEDs.prototype.GetWireYBase = function () {
+        this.setPinLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
+        if(this._vertical){
+            if (this._onTopHalf) 
+                return this._topPosition + 2*VISIR_SQUARE_SIZE;
+            else
+                return this._topPosition - 2*VISIR_SQUARE_SIZE;
+            }
+        // LED is horizontal
+        else {
+            return this._topPosition;
+        }
+       
+    }
+
+    Breadboard.LEDs.prototype.checkIfGround = function (point) {
+        var isGround = null;
+        var requiresPoint = null;
+        var yPos = this.GetWireYBase();
+        var xPos = this.GetWireX();
+        if(this._vertical){
+            if(this._onTopHalf){
+                yPos = yPos - 4*VISIR_SQUARE_SIZE;
+            }
+            else{
+                yPos = yPos + 4*VISIR_SQUARE_SIZE;
+            }
+
+            if (xPos >= 177 && xPos < 541) {
+                if (yPos == 406 || yPos == 159) {
+                    isGround = false;
+                    requiresPoint = false;
+                }
+            }
+        }
+        else{
+            xPos = xPos + 4*VISIR_SQUARE_SIZE;
+            if(this._onTopHalf){
+                if(point.x == xPos && point.y > 159 && point.y < 261){
+                    isGround = false;
+                    requiresPoint = true;
+                }
+            }
+            else{
+                if(point.x == xPos && point.y > 261 && point.y << 406){
+                    isGround = false;
+                    requiresPoint = true;
+                }
+            }
+        }
+        return [isGround, requiresPoint];
+    }
+
     // The switch objects in the breadboard
-    Breadboard.Switch = function (identifier, imageBase, leftPosition, topPosition) {
+    Breadboard.Switch = function (identifier, imageBase, leftPosition, topPosition, objVisir) {
         var self = this;
         // Obtain the two images for the switches from the static folder
         var image1 = imageBase + "switch-left-small.jpg";
         var image2 = imageBase + "switch-right-small.jpg";
 
-        Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1, image2);
+        if(objVisir){
+            this._objVisir = objVisir;
+        }
+
+        this._leftPosition = leftPosition;
+        this._rightPosition = topPosition;
+        console.log(this._leftPosition);
+        console.log(this._topPosition);
+        // Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1, image2);
 
         // Link appropriate css that makes the mouse become a pointer
-        this._$elem.css({'cursor': 'pointer'});
+        if(objVisir){
+            this._objVisir._$elem.css({'cursor': 'pointer'});
+            this._objVisir._$elem.find("img").attr("src", "static/visir/instruments/breadboard/images/butterfly-switch-right-small.jpg");
 
-        this._value = false;
-        this._$elem.find('img').click(function () {
-            self._Change();
-        });
+            this._value = false;
+            this._objVisir._$elem.find('img').click(function () {
+                console.log("switch pressed");
+                self._Change();
+            });
+        }
+        
     };
 
     Breadboard.Switch.prototype = Object.create(Breadboard.Component.prototype);
 
+
     // change the output state of the switch, triggered upon each user click
     Breadboard.Switch.prototype._Change = function () {
         this._value = !this._value;
+        this._valueChanged = true;
 
-        // swap between the two different images
-        var $inactiveElement = this._$elem.find('img:not(.active)');
-        var $activeElement = this._$elem.find('img.active');
-
-        // set the other one as inactive
-        $inactiveElement.addClass('active');
-        $activeElement.removeClass('active');
+        if(this._value){
+            this._objVisir._$elem.find("img").attr("src", "static/visir/instruments/breadboard/images/butterfly-switch-left-small.jpg");
+        }
+        else{
+            this._objVisir._$elem.find("img").attr("src", "static/visir/instruments/breadboard/images/butterfly-switch-right-small.jpg");
+        }
 
         // Make sure that the breadboard recognizes this change by updating the breadboard state
         if (this._breadboard !== null) {
@@ -1211,26 +1961,217 @@ RHLab.Widgets.Breadboard = function() {
         return this._value;
     }
 
+    Breadboard.Switch.prototype.checkIfPowered = function(point){
+        var wireYBase = this.GetWireYBase();
+        if(point.x == this.GetLeftX() && point.y >= wireYBase && point.y <= (wireYBase + 4*VISIR_SQUARE_SIZE)){
+            return true;
+        }
+        else if(point.x == this.GetRightX() && point.y >= wireYBase && point.y <= (wireYBase + 4*VISIR_SQUARE_SIZE)){
+            return false;
+        }
+        else{
+            return null;
+        }
+    }
+
+    Breadboard.Switch.prototype.SetSwitchLocation = function(xPos, yPos) {
+        this._leftPosition = xPos;
+        this._topPosition = yPos;
+    }
+
+    Breadboard.Switch.prototype.GetLeftX = function(){
+        this.SetSwitchLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
+        return this._leftPosition - VISIR_SQUARE_SIZE;
+    }
+
+    Breadboard.Switch.prototype.GetRightX = function() {
+        this.SetSwitchLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
+        return this._leftPosition + VISIR_SQUARE_SIZE;
+    }
     // The getter function that obtains the x value coordinates of where the wire should be
     Breadboard.Switch.prototype.GetWireX = function () {
-        return this._leftPosition + 20;
+        this.SetSwitchLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
+        return this._leftPosition;
+        // return this._leftPosition + 20;
     }
 
     // The getter function that obtains the y value coordinates of where the wire should be
     Breadboard.Switch.prototype.GetWireYBase = function () {
+        this.SetSwitchLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
         if (this._topPosition > 300) 
             return 302;
         else
             return 211;
     }
+
+    //************************newly added */
+    // The or gate functionality of the breadboard
+    Breadboard.XorGate = function(identifier, imageBase, leftPosition, topPosition, objVisir){
+        var self = this;
+
+        // Obtain the or gate image from the static folder to be placed on the breadbaord
+        var image1 = imageBase + "xor_gate.png";
+        // Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
+
+        this._leftPosition = leftPosition - 20;
+        this._topPosition = topPosition - 15;
+
+        this._objVisir = objVisir;
+
+        // Array that stores each of the 7 pin locations of the logic gate
+        this._pin_location = [
+            leftPosition + 7,
+            leftPosition + 20,
+            leftPosition + 33,
+            leftPosition + 46,
+            leftPosition + 59,
+            leftPosition + 72,
+            leftPosition + 85
+        ];
+    
+        // Array value that stores the states of each pin of the or gate
+        this._array_value = [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+        ];
+
+        this._protocol = [
+            null, null,
+            null, null,
+            null, null,
+            null, null,
+            null, null,
+            null, null
+        ];
+    }
+
+    Breadboard.XorGate.prototype = Object.create(Breadboard.Component.prototype);
+
+    Breadboard.XorGate.prototype.SetPinLocation = function(leftPosition, topPosition) {
+        leftPosition = leftPosition - 20;
+        topPosition = topPosition - 15;
+        this._pin_location = [
+            leftPosition + 7,
+            leftPosition + 20,
+            leftPosition + 33,
+            leftPosition + 46,
+            leftPosition + 59,
+            leftPosition + 72,
+            leftPosition + 85
+        ];
+        this._leftPosition = leftPosition;
+        this._topPosition = topPosition;
+    }
+
+    // the getter function that obtains the pin location for each pin
+    Breadboard.XorGate.prototype.GetPinLocation = function () {
+        this.SetPinLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
+        return this._pin_location;
+    }
+
+    // [true, 3, 1]
+    // this means: true, there is an input
+    //             the gate number
+    //             the input number for that particular gate
+    Breadboard.XorGate.prototype.CheckIfInput = function(pin){
+        var pinLocation = this.GetPinLocation();
+        // top half
+        if(pin.y < this._topPosition && pin.y > 159){
+            for(var i = 1; i < pinLocation.length; i++){
+                if(pin.x === pinLocation[i]){
+                    if(i != 3 && i != 6){
+                        // return [true, i < 3 ? 3 : 4, i < 3 ? i - 3 : i];
+                        return [true, i < 3 ? 3 : 4, i < 3 ? i : i - 3];
+                    }
+                }
+            }
+            return [false, -1, -1];
+        }
+        // bottom half
+        else if(pin.y >= this._topPosition && pin.y < 406) {
+            for(var i = 0; i < pinLocation.length - 1; i++){
+                if(pin.x === pinLocation[i]){
+                    if(i != 2 && i != 5){
+                        return [true, i < 2 ? 1 : 2, i < 2 ? i + 1 : i - 2];
+                    }
+                }
+            }
+            return [false, -1, -1];
+
+        }
+        return [false, -1, -1];
+    }
+
+    Breadboard.XorGate.prototype.CheckIfOutput = function(pin){
+        var pinLocation = this.GetPinLocation();
+        // top half
+        if(pin.y < this._topPosition && pin.y > 159){
+            if(pin.x === pinLocation[3]){
+                return [true, 3];
+            }
+            else if(pin.x === pinLocation[6]){
+                return [true, 4]
+            }
+            return [false, -1];
+        }
+        // bottom half
+        else if(pin.y >= this._topPosition && pin.y < 406) {
+            if(pin.x === pinLocation[2]){
+                return [true, 1];
+            }
+            else if(pin.x === pinLocation[5]){
+                return [true, 2];
+            }
+            return [false, -1];
+
+        }
+        return [false, -1];
+    }
+
+    Breadboard.XorGate.prototype.CheckIfPower = function(pin){
+        var pinLocation = this.GetPinLocation();
+        // top half
+        if(pin.y < this._topPosition && pin.y > 159){
+            if(pin.x === pinLocation[0]){
+                // This is a Vcc pin
+                return true;
+            }
+        }
+        else if(pin.y >= this._topPosition && pin.y < 406){
+            if(pin.x === pinLocation[6]){
+                // This is a GND pin
+                return false;
+            }
+
+        }
+    }
+    //***************end of newly added */
+
     
     // The or gate functionality of the breadboard
-    Breadboard.OrGate = function(identifier, imageBase, leftPosition, topPosition){
+    Breadboard.OrGate = function(identifier, imageBase, leftPosition, topPosition, objVisir){
         var self = this;
 
         // Obtain the or gate image from the static folder to be placed on the breadbaord
         var image1 = imageBase + "or_gate.png";
-        Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
+        // Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
+
+        this._leftPosition = leftPosition - 20;
+        this._topPosition = topPosition - 15;
+
+        this._objVisir = objVisir;
 
         // Array that stores each of the 7 pin locations of the logic gate
         this._pin_location = [
@@ -1273,51 +2214,117 @@ RHLab.Widgets.Breadboard = function() {
 
     Breadboard.OrGate.prototype = Object.create(Breadboard.Component.prototype);
 
-    // the getter function that obtains the state value for each pin
-    Breadboard.OrGate.prototype.GetValue = function(pin){
-        return this._array_value[pin];
+    Breadboard.OrGate.prototype.SetPinLocation = function(leftPosition, topPosition) {
+        leftPosition = leftPosition - 20;
+        topPosition = topPosition - 15;
+        this._pin_location = [
+            leftPosition + 7,
+            leftPosition + 20,
+            leftPosition + 33,
+            leftPosition + 46,
+            leftPosition + 59,
+            leftPosition + 72,
+            leftPosition + 85
+        ];
+        this._leftPosition = leftPosition;
+        this._topPosition = topPosition;
     }
 
     // the getter function that obtains the pin location for each pin
     Breadboard.OrGate.prototype.GetPinLocation = function () {
+        this.SetPinLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
         return this._pin_location;
     }
 
-    // the setter function that sets the input and output pin states for the or gate
-    Breadboard.OrGate.prototype.SetValue = function(pin, value){
-        // pin 1 and pin 2 are the inputs for pin 3
-        if(pin === 1 || pin === 2){
-            this._array_value[pin - 1] = value;
-            this._array_value[2] = this._array_value[0] || this._array_value[1];
+    // [true, 3, 1]
+    // this means: true, there is an input
+    //             the gate number
+    //             the input number for that particular gate
+    Breadboard.OrGate.prototype.CheckIfInput = function(pin){
+        var pinLocation = this.GetPinLocation();
+        // top half
+        if(pin.y < this._topPosition && pin.y > 159){
+            for(var i = 1; i < pinLocation.length; i++){
+                if(pin.x === pinLocation[i]){
+                    if(i != 3 && i != 6){
+                        // return [true, i < 3 ? 3 : 4, i < 3 ? i - 3 : i];
+                        return [true, i < 3 ? 3 : 4, i < 3 ? i : i - 3];
+                    }
+                }
+            }
+            return [false, -1, -1];
         }
-        // pin 4 and pin 5 are the inputs for pin 6
-        else if(pin === 4 || pin === 5){
-            this._array_value[pin - 1] = value;
-            this._array_value[5] = this._array_value[3] || this._array_value[4];
+        // bottom half
+        else if(pin.y >= this._topPosition && pin.y < 406) {
+            for(var i = 0; i < pinLocation.length - 1; i++){
+                if(pin.x === pinLocation[i]){
+                    if(i != 2 && i != 5){
+                        return [true, i < 2 ? 1 : 2, i < 2 ? i + 1 : i - 2];
+                    }
+                }
+            }
+            return [false, -1, -1];
+
         }
-        // pins 9 and pins 10 are the inputs for pin 8
-        else if(pin === 10 || pin === 9){
-            this._array_value[pin - 1] = value;
-            this._array_value[7] = this._array_value[8] || this._array_value[9];
+        return [false, -1, -1];
+    }
+
+    Breadboard.OrGate.prototype.CheckIfOutput = function(pin){
+        var pinLocation = this.GetPinLocation();
+        // top half
+        if(pin.y < this._topPosition && pin.y > 159){
+            if(pin.x === pinLocation[3]){
+                return [true, 3];
+            }
+            else if(pin.x === pinLocation[6]){
+                return [true, 4]
+            }
+            return [false, -1];
         }
-        // pins 12 and pins 13 are the inputs for pin 11
-        else if(pin === 12 || pin === 13){
-            this._array_value[pin - 1] = value;
-            this._array_value[10] = this._array_value[11] || this._array_value[12];
+        // bottom half
+        else if(pin.y >= this._topPosition && pin.y < 406) {
+            if(pin.x === pinLocation[2]){
+                return [true, 1];
+            }
+            else if(pin.x === pinLocation[5]){
+                return [true, 2];
+            }
+            return [false, -1];
+
         }
-        // otherwise, it has to be a vcc or gnd pin
-        else{
-            this._array_value[pin - 1] = value;
+        return [false, -1];
+    }
+
+    Breadboard.OrGate.prototype.CheckIfPower = function(pin){
+        var pinLocation = this.GetPinLocation();
+        // top half
+        if(pin.y < this._topPosition && pin.y > 159){
+            if(pin.x === pinLocation[0]){
+                // This is a Vcc pin
+                return true;
+            }
+        }
+        else if(pin.y >= this._topPosition && pin.y < 406){
+            if(pin.x === pinLocation[6]){
+                // This is a GND pin
+                return false;
+            }
+
         }
     }
     // ***********************************************************************************
     // The and gate functionality of the breadboard
-    Breadboard.AndGate = function(identifier, imageBase, leftPosition, topPosition) {
+    Breadboard.AndGate = function(identifier, imageBase, leftPosition, topPosition, objVisir) {
         var self = this;
 
         // Obtain the or gate image from the static folder to be placed on the breadbaord
         var image1 = imageBase + "and_gate.png";
-        Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
+        // Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
+
+        this._leftPosition = leftPosition - 20;
+        this._topPosition = topPosition - 15;
+
+        this._objVisir = objVisir;
         
         // Array that stores each of the 7 pin locations of the logic gate
         this._pin_location = [
@@ -1360,51 +2367,112 @@ RHLab.Widgets.Breadboard = function() {
 
     Breadboard.AndGate.prototype = Object.create(Breadboard.Component.prototype);
 
-    // the getter function that obtains the state value for each pin
-    Breadboard.AndGate.prototype.GetValue = function(pin){
-        return this._array_value[pin];
+    Breadboard.AndGate.prototype.SetPinLocation = function(leftPosition, topPosition) {
+        leftPosition = leftPosition - 20;
+        topPosition = topPosition - 15;
+        this._pin_location = [
+            leftPosition + 7,
+            leftPosition + 20,
+            leftPosition + 33,
+            leftPosition + 46,
+            leftPosition + 59,
+            leftPosition + 72,
+            leftPosition + 85
+        ];
+        this._leftPosition = leftPosition;
+        this._topPosition = topPosition;
     }
 
     // the getter function that obtains the pin location for each pin
     Breadboard.AndGate.prototype.GetPinLocation = function () {
+        this.SetPinLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
         return this._pin_location;
     }
 
-    // the setter function that sets the input and output pin states for the and gate
-    Breadboard.AndGate.prototype.SetValue = function(pin, value){
-        // pin 1 and pin 2 are the inputs for pin 3
-        if(pin === 1 || pin === 2){
-            this._array_value[pin - 1] = value;
-            this._array_value[2] = this._array_value[0] && this._array_value[1];
+    Breadboard.AndGate.prototype.CheckIfInput = function(pin){
+        var pinLocation = this.GetPinLocation();
+        // top half
+        if(pin.y < this._topPosition && pin.y > 159){
+            for(var i = 1; i < pinLocation.length; i++){
+                if(pin.x === pinLocation[i]){
+                    if(i != 3 && i != 6){
+                        return [true, i < 3 ? 3 : 4, i < 3 ? i : i - 3];
+                    }
+                }
+            }
+            return [false, -1, -1];
         }
-        // pin 4 and pin 5 are the inputs for pin 6
-        else if(pin === 4 || pin === 5){
-            this._array_value[pin - 1] = value;
-            this._array_value[5] = this._array_value[3] && this._array_value[4];
+        // bottom half
+        else if(pin.y >= this._topPosition && pin.y < 406) {
+            for(var i = 0; i < pinLocation.length - 1; i++){
+                if(pin.x === pinLocation[i]){
+                    if(i != 2 && i != 5){
+                        return [true, i < 2 ? 1 : 2, i < 2 ? i + 1 : i - 2];
+                    }
+                }
+            }
+            return [false, -1, -1];
+
         }
-        // pins 9 and pins 10 are the inputs for pin 8
-        else if(pin === 10 || pin === 9){
-            this._array_value[pin - 1] = value;
-            this._array_value[7] = this._array_value[8] && this._array_value[9];
+        return [false, -1, -1];
+    }
+
+    Breadboard.AndGate.prototype.CheckIfOutput = function(pin){
+        var pinLocation = this.GetPinLocation();
+        // top half
+        if(pin.y < this._topPosition && pin.y > 159){
+            if(pin.x === pinLocation[3]){
+                return [true, 3];
+            }
+            else if(pin.x === pinLocation[6]){
+                return [true, 4]
+            }
+            return [false, -1];
         }
-        // pins 12 and pins 13 are the inputs for pin 11
-        else if(pin === 12 || pin === 13){
-            this._array_value[pin - 1] = value;
-            this._array_value[10] = this._array_value[11] && this._array_value[12];
+        // bottom half
+        else if(pin.y >= this._topPosition && pin.y < 406) {
+            if(pin.x === pinLocation[2]){
+                return [true, 1];
+            }
+            else if(pin.x === pinLocation[5]){
+                return [true, 2];
+            }
+            return [false, -1];
+
         }
-        // otherwise, it has to be a vcc or gnd pin
-        else{
-            this._array_value[pin - 1] = value;
+        return [false, -1];
+    }
+
+    Breadboard.AndGate.prototype.CheckIfPower = function(pin){
+        var pinLocation = this.GetPinLocation();
+        // top half
+        if(pin.y < this._topPosition && pin.y > 159){
+            if(pin.x === pinLocation[0]){
+                // This is a Vcc pin
+                return true;
+            }
+        }
+        else if(pin.y >= this._topPosition && pin.y < 406){
+            if(pin.x === pinLocation[6]){
+                // This is a GND pin
+                return false;
+            }
+
         }
     }
     // ***************************************************************************************************************************
     // The and gate functionality of the breadboard
-    Breadboard.NotGate = function(identifier, imageBase, leftPosition, topPosition) {
+    Breadboard.NotGate = function(identifier, imageBase, leftPosition, topPosition, objVisir) {
         var self = this;
         // Obtain the or gate image from the static folder to be placed on the breadbaord
         var image1 = imageBase + "not_gate.png";
 
-        Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
+        this._leftPosition = leftPosition - 20;
+        this._topPosition = topPosition - 15;
+
+        this._objVisir = objVisir;
+
+        // Breadboard.Component.call(this, identifier, leftPosition, topPosition, image1);
         
         // Array that stores each of the 7 pin locations of the logic gate
         this._pin_location = [
@@ -1447,43 +2515,108 @@ RHLab.Widgets.Breadboard = function() {
 
     Breadboard.NotGate.prototype = Object.create(Breadboard.Component.prototype);
 
-    // the setter function that sets the input and output pin states for the and gate
-    Breadboard.NotGate.prototype.SetValue = function(pin, value){
-        // this is the bottom half pins on the not gate
-        if(pin === 1 || pin === 3 || pin === 5){
-            this._array_value[pin - 1] = value;
-            this._array_value[pin] = !value;
-        }
-        // this is the top half pins on the not gate
-        else if(pin === 9 || pin === 11 || pin === 13){
-            this._array_value[pin - 1] = value;
-            this._array_value[pin - 2] = !value;
-        }
-        // otherwise, it has to be a vcc or gnd pin
-        else{
-            this._array_value[pin - 1] = value;
-        }
+    Breadboard.NotGate.prototype.SetPinLocation = function(leftPosition, topPosition) {
+        leftPosition = leftPosition - 20;
+        topPosition = topPosition - 15;
+        this._pin_location = [
+            leftPosition + 7,
+            leftPosition + 20,
+            leftPosition + 33,
+            leftPosition + 46,
+            leftPosition + 59,
+            leftPosition + 72,
+            leftPosition + 85
+        ];
+        this._leftPosition = leftPosition;
+        this._topPosition = topPosition;
     }
-
-    // the getter function that obtains the state value for each pin
-    Breadboard.NotGate.prototype.GetValue = function(pin){
-        return this._array_value[pin];
-    }
-
+    
     // the getter function that obtains the pin location for each pin
     Breadboard.NotGate.prototype.GetPinLocation = function () {
+        // console.log(this.GetPos().x);
+        this.SetPinLocation(this._objVisir.GetPos().x, this._objVisir.GetPos().y);
         return this._pin_location;
+    }
+
+    Breadboard.NotGate.prototype.CheckIfInput = function(pin){
+        // top half
+        var pinLocation = this.GetPinLocation();
+        if(pin.y < this._topPosition && pin.y > 159){
+            // 9, 11, 13
+            for(var i = 1; i < pinLocation.length; i++){
+                if(pin.x === pinLocation[i] && (i % 2 != 0)){
+                    return [true, Math.floor((i+7)/2)-1];
+                }
+            }
+            return [false, -1];
+        }
+        // bottom half
+        else if(pin.y >= this._topPosition && pin.y < 406) {
+            // 0, 2, 4
+            for(var i = 0; i < pinLocation.length - 1; i++){
+                if(pin.x === pinLocation[i] && (i % 2 == 0)){
+                    return [true, i/2];
+                }
+            }
+            return [false, -1];
+        }
+        return [false, -1];
+    }
+
+    Breadboard.NotGate.prototype.CheckIfOutput = function(pin){
+        var pinLocation = this.GetPinLocation();
+        // top half
+        if(pin.y < this._topPosition && pin.y > 159){
+            // 8, 10, 12
+            for(var i = 1; i < pinLocation.length; i++){
+                if(pin.x === pinLocation[i] && (i % 2 == 0)){
+                    return [true, Math.floor((i+7)/2)];
+                }
+            }
+            return [false, -1];
+        }
+        // bottom half
+        else if(pin.y >= this._topPosition && pin.y < 406) {
+            for(var i = 0; i < pinLocation.length - 1; i++){
+                // 1, 3, 5
+                if(pin.x === pinLocation[i] && (i % 2 != 0)){
+                    return [true, Math.floor(i/2)+1];
+                }
+            }
+            return [false, -1];
+        }
+        return [false, -1];
+    }
+
+    Breadboard.NotGate.prototype.CheckIfPower = function(pin){
+        var pinLocation = this.GetPinLocation();
+        // top half
+        if(pin.y < this._topPosition && pin.y > 159){
+            if(pin.x === pinLocation[0]){
+                // This is a Vcc pin
+                return true;
+            }
+        }
+        else if(pin.y >= this._topPosition && pin.y < 406){
+            if(pin.x === pinLocation[6]){
+                // This is a GND pin
+                return false;
+            }
+
+        }
+        return null;
     }
     // ***************************************************************************************************************************
 
     // All potential error messages that a user may experience
     var ERROR_MESSAGES = {
-        "no-gpio": "Error: Every wire must be connected to one GPIO",
-        "two-gpio": "Error: Every wire can only be connected to one GPIO",
-        "gpio-not-supported": "Error: That GPIO pin is not supported",
-        "gpio-already-used": "Error: That GPIO is used by two wires",
-        "input-not-led": "Error: Input GPIO's must be connected to LED's",
-        "output-not-switch-gnd": "Error: Output GPIO's must be connected to switches or power supply",
+        "null": "Error: Every wire must be connected to a component",
+        "inputs": "Error: Both ends of a wire are connected to an input",
+        "outputs": "Error: Both ends of a wire are connected to an output",
+        "leds": "Error: A virtual LED is not properly wired",
+        "switches": "Error: A virtual switch is not properly wired",
+        "component-power": "Error: A component is not properly powered",
+        "component-placement": "Error: Illegal placement of a component",
         "ready": "Ready"
     };
 
